@@ -69,6 +69,13 @@ if (demos.length === 0) {
 const navegador = await chromium.launch();
 const falhas = [];
 
+// /assets/ pertence ao site principal (ParkNow914.github.io), servido no mesmo
+// dominio. Aqui ele nao existe, e nao deveria: duplicar as fontes so para o
+// teste passar desperdicaria o cache de quem chega vindo do portfolio. As
+// paginas tem pilha de fallback, entao a fonte e melhoria progressiva.
+// Que o caminho continue existindo em producao e conferido no workflow.
+const doSitePrincipal = (caminho) => caminho.startsWith("/assets/");
+
 console.log(`\nTestando ${demos.length} demo(s)\n`);
 
 for (const demo of demos) {
@@ -76,11 +83,22 @@ for (const demo of demos) {
   const erros = [];
 
   pagina.on("pageerror", (e) => erros.push(`erro de JS: ${e.message}`));
-  pagina.on("console", (m) => { if (m.type() === "error") erros.push(`console: ${m.text()}`); });
+
+  pagina.on("console", (m) => {
+    if (m.type() !== "error") return;
+    // O 404 de /assets/ tambem chega como erro de console, e sem a URL no texto.
+    // A origem da mensagem e o unico jeito de distinguir.
+    const origem = m.location()?.url ?? "";
+    if (origem.startsWith(base) && doSitePrincipal(origem.replace(base, ""))) return;
+    erros.push(`console: ${m.text()}`);
+  });
   pagina.on("requestfailed", (r) => {
     // CDN pode oscilar; recurso local faltando e bug de verdade.
     const url = r.url();
-    if (url.startsWith(base)) erros.push(`recurso local faltando: ${url.replace(base, "")}`);
+    if (!url.startsWith(base)) return;
+    const caminho = url.replace(base, "");
+    if (doSitePrincipal(caminho)) return;
+    erros.push(`recurso local faltando: ${caminho}`);
   });
 
   try {

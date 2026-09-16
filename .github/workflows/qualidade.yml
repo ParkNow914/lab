@@ -22,8 +22,8 @@ jobs:
     name: Catálogo
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
 
@@ -38,7 +38,7 @@ jobs:
           node tools/build-catalog.mjs
           node tools/build-site.mjs
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: site
           path: dist/
@@ -49,8 +49,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: catalogo
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v5
         with:
           name: site
           path: dist
@@ -66,11 +66,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: catalogo
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: site
           path: dist
@@ -84,3 +84,23 @@ jobs:
       # teste que pega erro de JS, import quebrado e WASM que nao carrega.
       - name: Abrir cada demo no navegador
         run: node tools/testar-demos.mjs
+
+  fontes:
+    name: A fonte do site principal continua lá
+    runs-on: ubuntu-latest
+    # As paginas do laboratorio carregam /assets/fonts/fonts.css, que mora no
+    # repositorio do site principal e e servido no mesmo dominio. Reutilizar em
+    # vez de duplicar aproveita o cache de quem chega vindo do portfolio — mas
+    # cria uma dependencia entre dois repositorios que ninguem veria quebrar.
+    # Sem este job, renomear aquele arquivo la tiraria a tipografia daqui em
+    # silencio: ha fallback, entao nada quebra visivelmente, so piora.
+    steps:
+      - name: Conferir a folha de fontes em produção
+        run: |
+          alvo="https://autarktech.com.br/assets/fonts/fonts.css"
+          codigo=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 25 "$alvo" || true)
+          if [ "$codigo" != "200" ]; then
+            echo "::error::$alvo respondeu HTTP $codigo. As demos perderam a tipografia do portfólio."
+            exit 1
+          fi
+          echo "fonts.css respondendo 200." >> "$GITHUB_STEP_SUMMARY"
