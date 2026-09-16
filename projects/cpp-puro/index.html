@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motor de física 2D em C++ — Laboratório Autark</title>
+<meta name="description" content="Milhares de corpos colidindo a 60fps: integração de Verlet e grade espacial escritas em C++, compiladas para WebAssembly.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  .tela-wrap { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: #02040a; }
+  canvas#tela { width: 100%; height: auto; aspect-ratio: 8/5; display: block; cursor: crosshair; touch-action: none; }
+
+  .hud { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; flex-wrap: wrap; font-family: var(--font-mono); font-size: .68rem; pointer-events: none; }
+  .hud span { background: rgba(3,6,12,.75); border: 1px solid var(--border); color: var(--text-dim); padding: 3px 8px; border-radius: 6px; }
+  .hud span b { color: var(--accent); font-weight: 600; }
+  .hud span.alerta b { color: var(--amber); }
+
+  .controles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-top: 16px; }
+  .ctrl label { display: flex; justify-content: space-between; font-size: .78rem; color: var(--text-dim); margin-bottom: 6px; }
+  .ctrl label b { color: var(--accent); font-family: var(--font-mono); }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica .r { color: var(--rose); font-weight: 600; }
+
+  .comparativo { width: 100%; border-collapse: collapse; font-size: .8rem; margin-top: 6px; }
+  .comparativo th, .comparativo td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .comparativo th { font-family: var(--font-mono); font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); font-weight: 500; }
+  .comparativo td { font-family: var(--font-mono); color: var(--text-muted); }
+  .comparativo td.bom { color: var(--accent); }
+  .comparativo td.ruim { color: var(--rose); }
+  .comparativo tr:last-child td { border-bottom: none; }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">C++</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/cpp-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Três mil corpos colidindo, a 60 quadros por segundo</h1>
+  <p class="pitch">
+    Clique e segure para atrair tudo. A física — integração de Verlet e resolução de
+    colisão — é C++ compilado para WebAssembly. O que faz isso caber em 16 milissegundos
+    não é a linguagem sozinha: é a <strong>grade espacial</strong> que evita comparar
+    cada corpo com todos os outros.
+  </p>
+
+  <div class="meta">
+    <span>C++20</span>
+    <span>integração de Verlet</span>
+    <span>grade espacial</span>
+    <span>13 KB de WebAssembly</span>
+    <span>roda no navegador</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    C++ vive onde performance encontra abstração: <code>std::vector</code>, lambdas e
+    estruturas alinhadas, sem abrir mão de controlar cada byte. Uma simulação de milhares
+    de corpos é o caso em que a escolha de estrutura de dados importa mais que a
+    linguagem — e dá para ver esse custo mudando na tela.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>A simulação <span class="hint">clique e segure para atrair</span></h2>
+      <div class="tela-wrap">
+        <canvas id="tela" width="800" height="500"></canvas>
+        <div class="hud">
+          <span><b id="h-n">—</b> corpos</span>
+          <span><b id="h-ms">—</b> ms/quadro</span>
+          <span><b id="h-fps">—</b> fps</span>
+          <span><b id="h-testes">—</b> testes de colisão</span>
+        </div>
+      </div>
+
+      <div class="controles">
+        <div class="ctrl">
+          <label for="r-n">corpos <b id="v-n">3000</b></label>
+          <input type="range" id="r-n" min="200" max="6000" step="200" value="3000">
+        </div>
+        <div class="ctrl">
+          <label for="r-sub">subpassos <b id="v-sub">2</b></label>
+          <input type="range" id="r-sub" min="1" max="6" step="1" value="2">
+        </div>
+        <div class="ctrl">
+          <label for="r-grav">gravidade <b id="v-grav">900</b></label>
+          <input type="range" id="r-grav" min="-600" max="1800" step="100" value="900">
+        </div>
+      </div>
+
+      <div class="linha" style="margin-top:14px">
+        <button class="pri" id="reiniciar">Reiniciar</button>
+        <button id="pausar">Pausar</button>
+      </div>
+    </section>
+
+    <section class="painel">
+      <h2>Por que a grade importa</h2>
+      <p class="dica">
+        Sem estrutura espacial, detectar colisão exige testar <b>todo par</b> de corpos:
+        com 3.000, são <span class="r">4,5 milhões</span> de testes por quadro. Com a
+        grade, cada corpo só conversa com quem está nas células vizinhas.
+      </p>
+
+      <table class="comparativo">
+        <thead>
+          <tr><th>abordagem</th><th>testes por quadro</th><th>viável a 60fps?</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>todos contra todos</td>
+            <td class="ruim" id="c-n2">—</td>
+            <td class="ruim">não</td>
+          </tr>
+          <tr>
+            <td>grade espacial</td>
+            <td class="bom" id="c-grade">—</td>
+            <td class="bom">sim</td>
+          </tr>
+          <tr>
+            <td>redução</td>
+            <td class="bom" id="c-fator">—</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="dica" style="margin-top:18px">
+        Suba os <b>subpassos</b> e veja a pilha ficar mais firme — e o custo subir na mesma
+        proporção. É a troca clássica de simulação: cada subpasso é uma rodada inteira de
+        colisão a mais, comprando estabilidade com tempo de CPU.
+      </p>
+
+      <p class="dica">
+        A integração de Verlet não guarda velocidade em lugar nenhum: a velocidade
+        <b>é</b> a diferença entre a posição atual e a do quadro anterior. Empurrar um
+        corpo para fora de uma parede já corrige o movimento dele, de graça.
+      </p>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/cpp-puro">Ler o fisica.cpp</a>
+  </div>
+</div>
+
+<script src="fisica.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const tela = $("tela");
+const ctx = tela.getContext("2d", { alpha: false });
+
+const PALETA = ["#34d399", "#22d3ee", "#fbbf24", "#fb7185", "#a78bfa"];
+
+let M = null, iniciar, passo, obterSaida, quantidade, testesDoQuadro, definirGravidade;
+let n = 3000, subpassos = 2;
+let animando = true;
+let atrator = { x: 0, y: 0, forca: 0 };
+let quadros = 0, marca = performance.now(), anterior = performance.now();
+
+function reiniciar() {
+  iniciar(n, tela.width, tela.height);
+  $("h-n").textContent = n.toLocaleString("pt-BR");
+  atualizarComparativo();
+}
+
+function atualizarComparativo() {
+  const paresTotais = (n * (n - 1)) / 2;
+  $("c-n2").textContent = paresTotais.toLocaleString("pt-BR");
+}
+
+function desenhar() {
+  const total = quantidade();
+  const ponteiro = obterSaida();
+
+  // HEAPF32 precisa ser relido a cada quadro: com ALLOW_MEMORY_GROWTH o heap
+  // pode ser trocado e a referencia antiga fica destacada.
+  const dados = M.HEAPF32.subarray(ponteiro / 4, ponteiro / 4 + total * 4);
+
+  ctx.fillStyle = "#02040a";
+  ctx.fillRect(0, 0, tela.width, tela.height);
+
+  // Agrupar por cor e trocar fillStyle 5 vezes em vez de 3.000: mudanca de
+  // estado no canvas 2D e cara, e aqui domina o tempo de desenho.
+  for (let c = 0; c < PALETA.length; c++) {
+    ctx.fillStyle = PALETA[c];
+    ctx.beginPath();
+    for (let i = 0; i < total; i++) {
+      if (dados[i * 4 + 3] !== c) continue;
+      const x = dados[i * 4], y = dados[i * 4 + 1], r = dados[i * 4 + 2];
+      ctx.moveTo(x + r, y);
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+    }
+    ctx.fill();
+  }
+
+  if (atrator.forca !== 0) {
+    ctx.strokeStyle = "rgba(52,211,153,.5)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(atrator.x, atrator.y, 26, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function laco(agora) {
+  const dt = Math.min((agora - anterior) / 1000, 1 / 30);
+  anterior = agora;
+
+  if (animando && M) {
+    const t0 = performance.now();
+    passo(dt, subpassos, atrator.x, atrator.y, atrator.forca);
+    const ms = performance.now() - t0;
+
+    desenhar();
+
+    const testes = testesDoQuadro();
+    $("h-ms").textContent = ms.toFixed(1);
+    $("h-testes").textContent = testes > 1e6
+      ? (testes / 1e6).toFixed(1) + "M"
+      : Math.round(testes / 1000) + "k";
+
+    $("c-grade").textContent = testes.toLocaleString("pt-BR");
+    const paresTotais = (n * (n - 1)) / 2;
+    $("c-fator").textContent = testes > 0
+      ? Math.round(paresTotais / testes).toLocaleString("pt-BR") + "× menos"
+      : "—";
+  }
+
+  quadros++;
+  if (agora - marca > 500) {
+    $("h-fps").textContent = Math.round((quadros * 1000) / (agora - marca));
+    quadros = 0; marca = agora;
+  }
+  requestAnimationFrame(laco);
+}
+
+// --- Interação ------------------------------------------------------------
+
+function posNoCanvas(e) {
+  const r = tela.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * (tela.width / r.width),
+    y: (e.clientY - r.top) * (tela.height / r.height),
+  };
+}
+
+tela.addEventListener("pointerdown", (e) => {
+  const p = posNoCanvas(e);
+  atrator = { x: p.x, y: p.y, forca: e.shiftKey ? -1 : 1 };
+  tela.setPointerCapture(e.pointerId);
+});
+tela.addEventListener("pointermove", (e) => {
+  if (atrator.forca === 0) return;
+  const p = posNoCanvas(e);
+  atrator.x = p.x; atrator.y = p.y;
+});
+const soltar = () => { atrator.forca = 0; };
+tela.addEventListener("pointerup", soltar);
+tela.addEventListener("pointercancel", soltar);
+tela.addEventListener("pointerleave", soltar);
+
+$("r-n").addEventListener("input", (e) => {
+  n = Number(e.target.value);
+  $("v-n").textContent = n.toLocaleString("pt-BR");
+  reiniciar();
+});
+$("r-sub").addEventListener("input", (e) => {
+  subpassos = Number(e.target.value);
+  $("v-sub").textContent = subpassos;
+});
+$("r-grav").addEventListener("input", (e) => {
+  $("v-grav").textContent = e.target.value;
+  definirGravidade(Number(e.target.value));
+});
+$("reiniciar").addEventListener("click", reiniciar);
+$("pausar").addEventListener("click", (e) => {
+  animando = !animando;
+  e.target.textContent = animando ? "Pausar" : "Continuar";
+  if (!animando && M) desenhar();
+});
+
+// --- Início ---------------------------------------------------------------
+
+criarFisica().then((m) => {
+  M = m;
+  iniciar = m.cwrap("iniciar", null, ["number", "number", "number"]);
+  passo = m.cwrap("passo", null, ["number", "number", "number", "number", "number"]);
+  obterSaida = m.cwrap("obter_saida", "number", []);
+  quantidade = m.cwrap("quantidade", "number", []);
+  testesDoQuadro = m.cwrap("testes_do_quadro", "number", []);
+  definirGravidade = m.cwrap("definir_gravidade", null, ["number"]);
+
+  reiniciar();
+  // Um passo e um desenho imediatos: em aba oculta o requestAnimationFrame
+  // fica suspenso, e a tela ficaria preta sem isto.
+  passo(1 / 60, subpassos, 0, 0, 0);
+  desenhar();
+  requestAnimationFrame(laco);
+}).catch((e) => {
+  console.error(e);
+  $("h-n").textContent = "erro";
+});
+</script>
+</body>
+</html>
