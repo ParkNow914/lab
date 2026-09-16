@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laboratório de SQL com dados reais — Laboratório Autark</title>
+<meta name="description" content="Um banco analítico completo dentro do navegador: escreva SELECT, JOIN, CTE recursiva e window function sobre 5.000 registros e veja o resultado na hora.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  textarea#sql { min-height: 220px; font-size: .8rem; line-height: 1.6; }
+
+  .exemplos { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .exemplos button { font-size: .76rem; padding: 6px 11px; font-family: var(--font-mono); }
+  .exemplos button.ativo { background: var(--accent-soft); border-color: rgba(52,211,153,.32); color: var(--accent); }
+
+  .explica {
+    font-size: .85rem; color: var(--text-muted); margin: 0 0 12px;
+    padding: 11px 14px; background: var(--surface); border-radius: 9px;
+    border-left: 2px solid var(--accent);
+  }
+
+  .res-wrap { overflow: auto; max-height: 440px; border: 1px solid var(--border); border-radius: 10px; }
+  table.res { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: .76rem; }
+  table.res thead th {
+    position: sticky; top: 0; background: #0a101f; z-index: 1;
+    text-align: left; padding: 9px 11px; border-bottom: 1px solid var(--border);
+    color: var(--cyan); font-weight: 600; white-space: nowrap;
+  }
+  table.res td { padding: 7px 11px; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--text-muted); white-space: nowrap; }
+  table.res td.num { text-align: right; color: var(--text); }
+  table.res tr:hover td { background: rgba(255,255,255,.025); }
+
+  .stats-q { display: flex; gap: 16px; flex-wrap: wrap; font-family: var(--font-mono); font-size: .74rem; color: var(--text-dim); margin-top: 10px; }
+  .stats-q b { color: var(--accent); }
+
+  .erro-sql {
+    padding: 12px 14px; border-radius: 9px; background: rgba(251,113,133,.07);
+    border: 1px solid rgba(251,113,133,.28); color: var(--rose);
+    font-family: var(--font-mono); font-size: .76rem; white-space: pre-wrap;
+  }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">SQL</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/sql-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Um banco analítico inteiro dentro da sua aba</h1>
+  <p class="pitch">
+    Não há servidor nesta página. O DuckDB foi compilado para WebAssembly e roda na
+    <strong>sua</strong> máquina, com 5.000 estadias de estacionamento geradas na abertura.
+    Escreva qualquer consulta — <code>JOIN</code>, <code>CTE</code> recursiva,
+    <code>window function</code> — e o resultado sai em milissegundos.
+  </p>
+
+  <div class="meta">
+    <span>SQL puro</span>
+    <span>DuckDB-WASM</span>
+    <span>colunar / vetorizado</span>
+    <span>5.000 linhas</span>
+    <span>roda no navegador</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    SQL é a linguagem mais duradoura da computação e a que mais separa quem sabe de quem
+    finge. Quase todo mundo escreve <code>SELECT … WHERE</code>; bem menos gente resolve
+    “quanto cada unidade faturou por dia e como isso se compara com o dia anterior” sem
+    puxar tudo para a aplicação. É isso que as consultas de exemplo mostram.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>Consulta <span class="hint">edite e rode</span></h2>
+
+      <div class="exemplos" id="exemplos"></div>
+      <p class="explica" id="explica">Carregando…</p>
+
+      <label for="sql">SQL</label>
+      <textarea id="sql" spellcheck="false" aria-label="Consulta SQL"></textarea>
+
+      <div class="linha" style="margin-top:12px">
+        <button class="pri" id="rodar" disabled>Executar</button>
+        <span style="font-size:.78rem;color:var(--text-dim);align-self:center">Ctrl+Enter também roda</span>
+      </div>
+    </section>
+
+    <section class="painel">
+      <h2>Resultado</h2>
+      <div id="saida"><div class="carregando" id="boot">Baixando e iniciando o DuckDB…</div></div>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/sql-puro">Ver o código</a>
+  </div>
+</div>
+
+<script type="module">
+import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm";
+
+const $ = (id) => document.getElementById(id);
+const saida = $("saida");
+
+// setseed deixa os dados identicos a cada visita: consulta de exemplo que
+// mostra numero diferente toda vez parece quebrada.
+const SEMENTE = `SELECT setseed(0.42);`;
+
+const CRIAR = `
+CREATE OR REPLACE TABLE estadias AS
+WITH base AS (
+  SELECT
+    i AS id,
+    TIMESTAMP '2026-09-01 06:00:00' + to_minutes((random() * 20160)::INT) AS entrada,
+    (20 + (random() * 400)::INT)                                          AS minutos,
+    -- floor() e obrigatorio: ::INT no DuckDB ARREDONDA em vez de truncar, entao
+    -- random()*4 chegaria a 4 e o indice 5 cairia fora da lista, virando NULL.
+    (['Centro','Shopping','Aeroporto','Hospital'])[1 + FLOOR(random() * 4)::INT] AS unidade,
+    (['avulso','avulso','avulso','mensalista','convenio'])[1 + FLOOR(random() * 5)::INT] AS tipo
+  FROM generate_series(1, 5000) AS t(i)
+)
+SELECT
+  id,
+  unidade,
+  tipo,
+  entrada,
+  entrada + to_minutes(minutos) AS saida,
+  minutos,
+  ROUND(
+    CASE
+      WHEN tipo = 'mensalista' THEN 0
+      WHEN tipo = 'convenio'   THEN 6.00
+      ELSE 8.00 + GREATEST(0, CEIL((minutos - 60) / 30.0)) * 4.00
+    END, 2) AS valor
+FROM base;`;
+
+const EXEMPLOS = [
+  {
+    nome: "1. o básico",
+    explica: "Agrupamento simples: quanto cada unidade faturou e qual o tempo médio de permanência. É o SELECT que todo mundo sabe escrever.",
+    sql: `SELECT
+  unidade,
+  COUNT(*)              AS estadias,
+  ROUND(AVG(minutos))   AS media_min,
+  ROUND(SUM(valor), 2)  AS faturamento
+FROM estadias
+GROUP BY unidade
+ORDER BY faturamento DESC;`,
+  },
+  {
+    nome: "2. window function",
+    explica: "Faturamento por unidade e por dia, comparado com o dia anterior da mesma unidade. LAG olha para a linha vizinha sem precisar de um segundo JOIN — e sem puxar nada para a aplicação.",
+    sql: `SELECT
+  unidade,
+  dia,
+  faturamento,
+  LAG(faturamento) OVER (PARTITION BY unidade ORDER BY dia) AS dia_anterior,
+  ROUND(
+    100.0 * (faturamento - LAG(faturamento) OVER (PARTITION BY unidade ORDER BY dia))
+    / NULLIF(LAG(faturamento) OVER (PARTITION BY unidade ORDER BY dia), 0), 1
+  ) AS variacao_pct
+FROM (
+  SELECT unidade, CAST(entrada AS DATE) AS dia, ROUND(SUM(valor), 2) AS faturamento
+  FROM estadias
+  GROUP BY 1, 2
+)
+ORDER BY unidade, dia
+LIMIT 40;`,
+  },
+  {
+    nome: "3. hora de pico",
+    explica: "Ocupação real por hora do dia: uma estadia das 9h às 12h ocupa vaga às 9, 10, 11 e 12. Sem a série gerada, dava para contar só a hora da entrada — e a resposta sairia errada.",
+    sql: `WITH horas AS (SELECT h FROM generate_series(0, 23) AS t(h)),
+ocupacao AS (
+  SELECT h.h AS hora, COUNT(*) AS veiculos
+  FROM estadias e
+  JOIN horas h
+    ON h.h BETWEEN EXTRACT(HOUR FROM e.entrada) AND EXTRACT(HOUR FROM e.saida)
+   AND CAST(e.entrada AS DATE) = CAST(e.saida AS DATE)
+  GROUP BY 1
+)
+SELECT hora, veiculos, REPEAT('#', (veiculos / 40)::INT) AS grafico
+FROM ocupacao
+ORDER BY hora;`,
+  },
+  {
+    nome: "4. CTE recursiva",
+    explica: "Calendário construído pela própria consulta, linha a linha, cada uma nascendo da anterior. Serve para revelar dia sem movimento — que some num GROUP BY comum, porque não existe linha para agrupar.",
+    sql: `WITH RECURSIVE calendario(dia) AS (
+  SELECT DATE '2026-09-01'
+  UNION ALL
+  SELECT dia + 1 FROM calendario WHERE dia < DATE '2026-09-14'
+)
+SELECT
+  c.dia,
+  COALESCE(COUNT(e.id), 0)          AS estadias,
+  ROUND(COALESCE(SUM(e.valor), 0), 2) AS faturamento
+FROM calendario c
+LEFT JOIN estadias e ON CAST(e.entrada AS DATE) = c.dia
+GROUP BY c.dia
+ORDER BY c.dia;`,
+  },
+  {
+    nome: "5. quem paga a conta",
+    explica: "Distribuição de receita por tipo de cliente. Mensalista ocupa vaga e não gera receita avulsa: o percentual de ocupação contra o percentual de faturamento é a conta que decide preço.",
+    sql: `SELECT
+  tipo,
+  COUNT(*)                                             AS estadias,
+  ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 1)   AS pct_ocupacao,
+  ROUND(SUM(valor), 2)                                 AS faturamento,
+  ROUND(100.0 * SUM(valor) / SUM(SUM(valor)) OVER (), 1) AS pct_faturamento
+FROM estadias
+GROUP BY tipo
+ORDER BY faturamento DESC;`,
+  },
+];
+
+// --- Formatacao de valores -------------------------------------------------
+
+// Arrow nao devolve Date para colunas DATE/TIMESTAMP: devolve numero cru, e a
+// unidade varia (DuckDB manda DATE em milissegundos e TIMESTAMP em
+// microssegundos). Tratar pelo tipo em JavaScript renderiza "1.788.220.800.000"
+// no lugar de uma data, entao o formatador nasce do schema da coluna.
+function formatadorDe(campo) {
+  const tipo = String(campo.type).toLowerCase();
+
+  if (tipo.includes("date") || tipo.includes("timestamp")) {
+    const soData = tipo.includes("date");
+
+    // timeZone UTC nao e detalhe: o DuckDB guarda DATE e TIMESTAMP sem fuso, e
+    // o navegador em UTC-3 deslocaria tudo tres horas para tras — um DATE, que
+    // e meia-noite, apareceria como o DIA ANTERIOR. O dado nao tem fuso, entao
+    // e lido como esta, nao convertido.
+    const opcoes = soData
+      ? { dateStyle: "short", timeZone: "UTC" }
+      : { dateStyle: "short", timeStyle: "short", timeZone: "UTC" };
+
+    return (v) => {
+      if (v === null || v === undefined) return { txt: "—", num: false };
+      if (v instanceof Date) return { txt: v.toLocaleString("pt-BR", opcoes), num: false };
+      // Ordem de grandeza denuncia a unidade: ms ~1.8e12, us ~1.8e15, ns ~1.8e18.
+      let n = Number(v);
+      if (n > 1e17) n /= 1e6;
+      else if (n > 1e14) n /= 1e3;
+      const d = new Date(n);
+      if (Number.isNaN(d.getTime())) return { txt: String(v), num: false };
+      return { txt: d.toLocaleString("pt-BR", opcoes), num: false };
+    };
+  }
+
+  return (v) => {
+    if (v === null || v === undefined) return { txt: "—", num: false };
+    // Inteiro de 64 bits chega como BigInt; misturar com Number lanca TypeError.
+    if (typeof v === "bigint") return { txt: v.toLocaleString("pt-BR"), num: true };
+    if (typeof v === "number") {
+      return { txt: v.toLocaleString("pt-BR", { maximumFractionDigits: 2 }), num: true };
+    }
+    if (v instanceof Date) return { txt: v.toLocaleString("pt-BR"), num: false };
+    return { txt: String(v), num: false };
+  };
+}
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function desenhar(tabela, ms) {
+  const campos = tabela.schema.fields;
+  const colunas = campos.map((f) => f.name);
+  const formatadores = campos.map(formatadorDe);
+  const linhas = tabela.toArray();
+
+  if (linhas.length === 0) {
+    saida.innerHTML = `<p style="color:var(--text-dim)">A consulta rodou e não devolveu nenhuma linha.</p>`;
+    return;
+  }
+
+  const teto = 300; // tabela gigante trava a rolagem sem ajudar ninguem
+  const mostrar = linhas.slice(0, teto);
+
+  const corpo = mostrar.map((linha) => {
+    const tds = colunas.map((c, i) => {
+      const { txt, num } = formatadores[i](linha[c]);
+      return `<td class="${num ? "num" : ""}">${esc(txt)}</td>`;
+    }).join("");
+    return `<tr>${tds}</tr>`;
+  }).join("");
+
+  saida.innerHTML = `
+    <div class="res-wrap">
+      <table class="res">
+        <thead><tr>${colunas.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead>
+        <tbody>${corpo}</tbody>
+      </table>
+    </div>
+    <div class="stats-q">
+      <span><b>${linhas.length.toLocaleString("pt-BR")}</b> linha(s)</span>
+      <span><b>${colunas.length}</b> coluna(s)</span>
+      <span>em <b>${ms.toFixed(1)} ms</b></span>
+      ${linhas.length > teto ? `<span>mostrando as primeiras ${teto}</span>` : ""}
+    </div>`;
+}
+
+// --- DuckDB ---------------------------------------------------------------
+
+let conexao = null;
+
+async function iniciar() {
+  const pacotes = duckdb.getJsDelivrBundles();
+  const pacote = await duckdb.selectBundle(pacotes);
+
+  // O worker precisa vir de um Blob de mesma origem: carregar o script do CDN
+  // direto como Worker esbarra na politica de origem cruzada.
+  const urlWorker = URL.createObjectURL(
+    new Blob([`importScripts("${pacote.mainWorker}");`], { type: "text/javascript" }),
+  );
+
+  const banco = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), new Worker(urlWorker));
+  await banco.instantiate(pacote.mainModule, pacote.pthreadWorker);
+  URL.revokeObjectURL(urlWorker);
+
+  conexao = await banco.connect();
+  await conexao.query(SEMENTE);
+  await conexao.query(CRIAR);
+}
+
+async function executar() {
+  if (!conexao) return;
+  const sql = $("sql").value.trim();
+  if (!sql) return;
+
+  $("rodar").disabled = true;
+  saida.innerHTML = `<div class="carregando">Executando…</div>`;
+
+  try {
+    const t = performance.now();
+    const tabela = await conexao.query(sql);
+    desenhar(tabela, performance.now() - t);
+  } catch (e) {
+    // A mensagem do DuckDB aponta a posicao do erro; vale mostrar crua.
+    saida.innerHTML = `<div class="erro-sql">${esc(String(e.message ?? e))}</div>`;
+  } finally {
+    $("rodar").disabled = false;
+  }
+}
+
+// --- Interface ------------------------------------------------------------
+
+function montarExemplos() {
+  const caixa = $("exemplos");
+  EXEMPLOS.forEach((ex, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = ex.nome;
+    b.addEventListener("click", () => {
+      $("sql").value = ex.sql;
+      $("explica").textContent = ex.explica;
+      caixa.querySelectorAll("button").forEach((o) => o.classList.remove("ativo"));
+      b.classList.add("ativo");
+      executar();
+    });
+    if (i === 0) b.classList.add("ativo");
+    caixa.appendChild(b);
+  });
+}
+
+$("rodar").addEventListener("click", executar);
+$("sql").addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); executar(); }
+});
+
+montarExemplos();
+$("sql").value = EXEMPLOS[0].sql;
+$("explica").textContent = EXEMPLOS[0].explica;
+
+try {
+  await iniciar();
+  $("rodar").disabled = false;
+  await executar();
+} catch (e) {
+  saida.innerHTML = `<div class="erro-sql">Não consegui iniciar o DuckDB:\n${esc(String(e.message ?? e))}</div>`;
+  console.error(e);
+}
+</script>
+</body>
+</html>
