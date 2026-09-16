@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cena 3D por ray marching em GLSL — Laboratório Autark</title>
+<meta name="description" content="Um mundo 3D descrito por função matemática e renderizado pela GPU: sem malha, sem vértice, com editor de shader ao vivo.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  .tela-wrap { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: #02040a; }
+  canvas#tela { width: 100%; height: auto; aspect-ratio: 16 / 10; display: block; cursor: grab; touch-action: none; }
+  canvas#tela:active { cursor: grabbing; }
+
+  .hud {
+    position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; flex-wrap: wrap;
+    font-family: var(--font-mono); font-size: .68rem; pointer-events: none;
+  }
+  .hud span { background: rgba(3,6,12,.72); border: 1px solid var(--border); color: var(--text-dim); padding: 3px 8px; border-radius: 6px; }
+  .hud span b { color: var(--accent); font-weight: 600; }
+
+  textarea#shader { min-height: 340px; font-size: .74rem; line-height: 1.5; }
+
+  .erro-shader {
+    margin-top: 10px; padding: 11px 13px; border-radius: 9px;
+    background: rgba(251,113,133,.07); border: 1px solid rgba(251,113,133,.28);
+    color: var(--rose); font-family: var(--font-mono); font-size: .73rem;
+    white-space: pre-wrap; max-height: 180px; overflow: auto;
+  }
+  .ok-shader {
+    margin-top: 10px; padding: 9px 13px; border-radius: 9px;
+    background: var(--accent-soft); border: 1px solid rgba(52,211,153,.22);
+    color: var(--accent); font-family: var(--font-mono); font-size: .73rem;
+  }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">GLSL</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/glsl-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Um mundo 3D sem nenhum triângulo</h1>
+  <p class="pitch">
+    Nesta cena não existe modelo, malha nem vértice. Existe uma <strong>função matemática</strong>
+    que, para qualquer ponto do espaço, responde “a que distância você está da superfície mais
+    próxima?”. A GPU roda essa função algumas centenas de milhares de vezes por quadro — uma vez
+    por pixel, todas ao mesmo tempo — e a imagem aparece.
+  </p>
+
+  <div class="meta">
+    <span>GLSL ES 3.0</span>
+    <span>WebGL2</span>
+    <span>ray marching</span>
+    <span>campo de distância com sinal</span>
+    <span>roda na GPU</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    Shader é programação paralela levada ao extremo: o mesmo código roda em milhões de pixels
+    simultaneamente, sem poder ramificar à vontade, sem laço com tamanho livre e sem alocar
+    memória. Ray marching com campo de distância é o ápice disso — geometria que existe só
+    como equação.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>A cena <span class="hint">arraste para girar</span></h2>
+      <div class="tela-wrap">
+        <canvas id="tela"></canvas>
+        <div class="hud">
+          <span><b id="fps">—</b> fps</span>
+          <span><b id="res">—</b> px</span>
+          <span><b id="passos">—</b> passos/raio</span>
+        </div>
+      </div>
+      <div class="linha" style="margin-top:12px">
+        <button class="pri" id="aplicar">Aplicar shader</button>
+        <button id="restaurar">Restaurar original</button>
+        <button id="pausar">Pausar</button>
+      </div>
+      <div id="estado"></div>
+    </section>
+
+    <section class="painel">
+      <h2>O shader <span class="hint">edite e aplique</span></h2>
+      <p class="dica">
+        Coisas rápidas de tentar: troque o <code>0.7</code> do raio da esfera; mude o
+        <code>k</code> do <code>uniaoSuave</code> para <code>0.9</code> e veja as formas
+        derreterem uma na outra; ou zere o <code>sombra()</code> para <code>1.0</code> e
+        perceba <b>quanta profundidade a sombra suave estava criando</b>.
+      </p>
+      <label for="shader">Fragment shader (GLSL ES 3.0)</label>
+      <textarea id="shader" spellcheck="false" aria-label="Código do shader"></textarea>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/glsl-puro">Ver o código</a>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const tela = $("tela");
+const gl = tela.getContext("webgl2", { antialias: false, powerPreference: "high-performance" });
+
+if (!gl) {
+  $("estado").innerHTML = `<div class="erro-shader">Este navegador não tem WebGL2. A cena precisa dele para rodar.</div>`;
+}
+
+// Triangulo que cobre a tela inteira, gerado a partir do gl_VertexID: nao existe
+// buffer de vertice nenhum neste programa, de proposito.
+const VERTEX = `#version 300 es
+void main() {
+  vec2 p = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+const FRAGMENT = `#version 300 es
+precision highp float;
+
+out vec4 corFinal;
+
+uniform vec2  u_res;
+uniform float u_tempo;
+uniform vec2  u_orbita;   // giro da camera (arraste do mouse)
+
+// ---------- Campos de distancia com sinal -------------------------------
+// Cada funcao responde: "deste ponto, qual a distancia ate a superficie?"
+// Negativo quer dizer que o ponto esta dentro do objeto.
+
+float esfera(vec3 p, float r) {
+  return length(p) - r;
+}
+
+float caixa(vec3 p, vec3 b) {
+  vec3 q = abs(p) - b;
+  return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
+}
+
+float toro(vec3 p, vec2 t) {
+  return length(vec2(length(p.xz) - t.x, p.y)) - t.y;
+}
+
+// Uniao normal e min(a,b) e produz quina dura. Esta versao mistura as duas
+// superficies numa faixa de tamanho k — e o que faz as formas derreterem.
+float uniaoSuave(float a, float b, float k) {
+  float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+  return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+mat2 giro(float a) {
+  float c = cos(a), s = sin(a);
+  return mat2(c, -s, s, c);
+}
+
+// ---------- A cena inteira ----------------------------------------------
+
+float cena(vec3 p) {
+  float chao = p.y + 1.0;
+
+  vec3 q = p;
+  q.xz = giro(u_tempo * 0.3) * q.xz;
+
+  float bolha = esfera(q - vec3(0.0, sin(u_tempo) * 0.25, 0.0), 0.7);
+
+  vec3 c = q;
+  c.xy = giro(u_tempo * 0.5) * c.xy;
+  float cubo = caixa(c - vec3(0.95, 0.15, 0.0), vec3(0.32));
+
+  vec3 t = q;
+  t.yz = giro(1.2) * t.yz;
+  float anel = toro(t - vec3(-0.95, 0.15, 0.0), vec2(0.42, 0.13));
+
+  float corpo = uniaoSuave(bolha, cubo, 0.45);
+  corpo = uniaoSuave(corpo, anel, 0.45);
+
+  return min(chao, corpo);
+}
+
+// A normal e o gradiente do campo: para que lado a distancia cresce mais rapido.
+vec3 normal(vec3 p) {
+  vec2 e = vec2(0.0012, 0.0);
+  return normalize(vec3(
+    cena(p + e.xyy) - cena(p - e.xyy),
+    cena(p + e.yxy) - cena(p - e.yxy),
+    cena(p + e.yyx) - cena(p - e.yyx)
+  ));
+}
+
+// Sombra suave de graca: em vez de perguntar "bateu ou nao", acompanha o quanto
+// o raio chegou perto de bater no caminho ate a luz.
+float sombra(vec3 origem, vec3 dir) {
+  float res = 1.0;
+  float t = 0.05;
+  for (int i = 0; i < 48; i++) {
+    float d = cena(origem + dir * t);
+    if (d < 0.001) return 0.0;
+    res = min(res, 10.0 * d / t);
+    t += clamp(d, 0.02, 0.4);
+    if (t > 12.0) break;
+  }
+  return clamp(res, 0.0, 1.0);
+}
+
+// Oclusao de ambiente: quanto o entorno proximo bloqueia a luz difusa.
+float oclusao(vec3 p, vec3 n) {
+  float oc = 0.0, esc = 1.0;
+  for (int i = 0; i < 5; i++) {
+    float h = 0.02 + 0.12 * float(i);
+    oc += (h - cena(p + n * h)) * esc;
+    esc *= 0.75;
+  }
+  return clamp(1.0 - 1.4 * oc, 0.0, 1.0);
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy * 2.0 - u_res) / u_res.y;
+
+  // Camera orbitando, controlada pelo arraste.
+  float ang = u_orbita.x;
+  float alt = clamp(u_orbita.y, -0.35, 1.1);
+  vec3 ro = vec3(sin(ang) * 3.6, 1.0 + alt * 2.0, cos(ang) * 3.6);
+  vec3 alvo = vec3(0.0, 0.1, 0.0);
+
+  vec3 f = normalize(alvo - ro);
+  vec3 r = normalize(cross(vec3(0.0, 1.0, 0.0), f));
+  vec3 u = cross(f, r);
+  vec3 rd = normalize(uv.x * r + uv.y * u + 1.6 * f);
+
+  // O ray marching em si: avanca pelo raio a distancia que o campo garante ser
+  // segura. Nunca atravessa a superficie, e chega perto rapido.
+  float t = 0.0;
+  int passos = 0;
+  bool bateu = false;
+
+  for (int i = 0; i < 128; i++) {
+    passos = i;
+    vec3 p = ro + rd * t;
+    float d = cena(p);
+    if (d < 0.0008 * t) { bateu = true; break; }
+    t += d;
+    if (t > 28.0) break;
+  }
+
+  vec3 cor = vec3(0.02, 0.031, 0.062);            // fundo
+  cor = mix(cor, vec3(0.05, 0.09, 0.13), smoothstep(-0.4, 0.9, rd.y));
+
+  if (bateu) {
+    vec3 p = ro + rd * t;
+    vec3 n = normal(p);
+    vec3 luz = normalize(vec3(0.8, 0.95, 0.55));
+
+    float dif = clamp(dot(n, luz), 0.0, 1.0);
+    float som = sombra(p + n * 0.01, luz);
+    float oc  = oclusao(p, n);
+
+    // Realce nas bordas: escurece onde a superficie vira de lado.
+    float borda = pow(1.0 - clamp(dot(n, -rd), 0.0, 1.0), 2.5);
+
+    vec3 albedo = vec3(0.68, 0.72, 0.78);
+    if (p.y < -0.985) {
+      // Xadrez do chao
+      float x = mod(floor(p.x) + floor(p.z), 2.0);
+      albedo = mix(vec3(0.08, 0.1, 0.13), vec3(0.14, 0.17, 0.21), x);
+    } else {
+      albedo = mix(vec3(0.2, 0.85, 0.6), vec3(0.13, 0.82, 0.93), 0.5 + 0.5 * sin(p.y * 2.0 + u_tempo));
+    }
+
+    vec3 luzDireta = vec3(1.0, 0.96, 0.86) * dif * som;
+    vec3 luzCeu    = vec3(0.16, 0.24, 0.38) * (0.5 + 0.5 * n.y) * oc;
+
+    cor = albedo * (luzDireta + luzCeu);
+    cor += vec3(0.2, 0.95, 0.75) * borda * 0.28;      // contorno
+    cor = mix(cor, vec3(0.02, 0.031, 0.062), 1.0 - exp(-0.012 * t * t)); // neblina
+  }
+
+  cor = pow(clamp(cor, 0.0, 1.0), vec3(0.4545));      // gama
+  corFinal = vec4(cor, 1.0);
+}`;
+
+$("shader").value = FRAGMENT;
+
+// --- Compilacao -----------------------------------------------------------
+
+let programa = null;
+let uniformes = {};
+
+function compilar(tipo, fonte) {
+  const s = gl.createShader(tipo);
+  gl.shaderSource(s, fonte);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(s);
+    gl.deleteShader(s);
+    throw new Error(log || "shader não compilou");
+  }
+  return s;
+}
+
+function montar(fonteFragment) {
+  const vs = compilar(gl.VERTEX_SHADER, VERTEX);
+  const fs = compilar(gl.FRAGMENT_SHADER, fonteFragment);
+  const p = gl.createProgram();
+  gl.attachShader(p, vs);
+  gl.attachShader(p, fs);
+  gl.linkProgram(p);
+  gl.deleteShader(vs);
+  gl.deleteShader(fs);
+
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+    const log = gl.getProgramInfoLog(p);
+    gl.deleteProgram(p);
+    throw new Error(log || "link falhou");
+  }
+
+  if (programa) gl.deleteProgram(programa);
+  programa = p;
+  gl.useProgram(programa);
+  uniformes = {
+    res: gl.getUniformLocation(programa, "u_res"),
+    tempo: gl.getUniformLocation(programa, "u_tempo"),
+    orbita: gl.getUniformLocation(programa, "u_orbita"),
+  };
+}
+
+function aplicar(fonte, silencioso) {
+  try {
+    montar(fonte);
+    $("estado").innerHTML = silencioso ? "" : `<div class="ok-shader">Shader compilado e rodando.</div>`;
+    if (!silencioso) setTimeout(() => { $("estado").innerHTML = ""; }, 2200);
+    return true;
+  } catch (e) {
+    // A mensagem crua do driver e o que um shader dev realmente le.
+    $("estado").innerHTML = `<div class="erro-shader">${String(e.message).trim()}</div>`;
+    return false;
+  }
+}
+
+// --- Interacao ------------------------------------------------------------
+
+let orbita = { x: 0.6, y: 0.25 };
+let arrastando = false, ultimo = null;
+
+const pos = (e) => {
+  const t = e.touches ? e.touches[0] : e;
+  return { x: t.clientX, y: t.clientY };
+};
+
+tela.addEventListener("pointerdown", (e) => {
+  arrastando = true; ultimo = pos(e); tela.setPointerCapture(e.pointerId);
+});
+tela.addEventListener("pointermove", (e) => {
+  if (!arrastando) return;
+  const p = pos(e);
+  orbita.x -= (p.x - ultimo.x) * 0.008;
+  orbita.y += (p.y - ultimo.y) * 0.005;
+  ultimo = p;
+});
+tela.addEventListener("pointerup", () => { arrastando = false; });
+tela.addEventListener("pointercancel", () => { arrastando = false; });
+
+let pausado = false;
+$("pausar").addEventListener("click", (e) => {
+  pausado = !pausado;
+  e.target.textContent = pausado ? "Continuar" : "Pausar";
+});
+$("aplicar").addEventListener("click", () => aplicar($("shader").value, false));
+$("restaurar").addEventListener("click", () => { $("shader").value = FRAGMENT; aplicar(FRAGMENT, false); });
+
+// --- Laco de render -------------------------------------------------------
+
+function redimensionar() {
+  // Em aba oculta, dentro de display:none ou antes do primeiro layout,
+  // clientWidth vem 0 — e canvas 0x0 vira viewport zerada e divisao por zero
+  // no shader. O piso abaixo mantem a cena valida ate a largura real existir.
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const disponivel = tela.clientWidth || tela.parentElement?.clientWidth || 960;
+
+  // Meio pixel por pixel fisico: ray marching e caro e a cena nao precisa de
+  // nitidez total para ficar boa. Teto evita fritar GPU de celular.
+  const l = Math.max(320, Math.min(disponivel * dpr * 0.75, 1400));
+  const a = Math.round(l * 0.625);
+
+  if (tela.width !== Math.round(l) || tela.height !== a) {
+    tela.width = Math.round(l);
+    tela.height = a;
+    $("res").textContent = `${tela.width}×${tela.height}`;
+  }
+}
+
+let t0 = performance.now(), tempo = 0;
+let quadros = 0, ultimaMedida = performance.now();
+
+function quadro(agora) {
+  const dt = (agora - t0) / 1000;
+  t0 = agora;
+  if (!pausado) tempo += dt;
+
+  redimensionar();
+  gl.viewport(0, 0, tela.width, tela.height);
+
+  if (programa) {
+    gl.useProgram(programa);
+    gl.uniform2f(uniformes.res, tela.width, tela.height);
+    gl.uniform1f(uniformes.tempo, tempo);
+    gl.uniform2f(uniformes.orbita, orbita.x, orbita.y);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  quadros++;
+  if (agora - ultimaMedida > 500) {
+    $("fps").textContent = Math.round((quadros * 1000) / (agora - ultimaMedida));
+    quadros = 0;
+    ultimaMedida = agora;
+  }
+
+  requestAnimationFrame(quadro);
+}
+
+if (gl) {
+  $("passos").textContent = "128";
+  if (aplicar(FRAGMENT, true)) requestAnimationFrame(quadro);
+}
+</script>
+</body>
+</html>
