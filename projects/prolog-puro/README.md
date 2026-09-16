@@ -15,12 +15,8 @@ Programação lógica inverte tudo: descreve-se o problema, não o passo a passo
 
 ## Build
 
-```bash
-# TODO: comandos para compilar esta demo
-```
-
-O resultado precisa acabar como `index.html` (mais assets) nesta pasta.
-`tools/build-site.mjs` copia a pasta inteira para `dist/prolog-puro/`.
+Nenhum. A página é servida como está; a linguagem roda no navegador por um
+runtime carregado via CDN.
 
 ## Publicado em
 

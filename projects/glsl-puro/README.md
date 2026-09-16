@@ -15,12 +15,8 @@ Shader é programação paralela extrema: o mesmo código roda em milhões de pi
 
 ## Build
 
-```bash
-# TODO: comandos para compilar esta demo
-```
-
-O resultado precisa acabar como `index.html` (mais assets) nesta pasta.
-`tools/build-site.mjs` copia a pasta inteira para `dist/glsl-puro/`.
+Nenhum. A página é servida como está; a linguagem roda no navegador por um
+runtime carregado via CDN.
 
 ## Publicado em
 

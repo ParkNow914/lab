@@ -3,11 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sandbox de script para regras de jogo — Laboratório Autark</title>
-<meta name="description" content="Escreva script Lua no navegador para controlar entidades numa cena — com limite de memória e de instruções aplicado pelo host.">
+<title>Sandbox de script em Lua — Laboratório Autark</title>
+<meta name="description" content="Lua 5.4 rodando no navegador dentro de uma caixa de areia: o script controla a cena, mas só enxerga a API que o programa hospedeiro decidiu entregar.">
 <meta name="color-scheme" content="dark">
 <link rel="stylesheet" href="/assets/fonts/fonts.css">
 <link rel="stylesheet" href="../demo.css">
+<style>
+  .tela-wrap { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: #02040a; }
+  canvas#tela { width: 100%; height: auto; aspect-ratio: 16/10; display: block; }
+
+  .hud { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; flex-wrap: wrap; font-family: var(--font-mono); font-size: .68rem; pointer-events: none; }
+  .hud span { background: rgba(3,6,12,.75); border: 1px solid var(--border); color: var(--text-dim); padding: 3px 8px; border-radius: 6px; }
+  .hud span b { color: var(--accent); font-weight: 600; }
+
+  textarea#lua { min-height: 320px; font-size: .78rem; line-height: 1.55; }
+
+  .exemplos { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .exemplos button { font-size: .75rem; padding: 6px 11px; font-family: var(--font-mono); }
+  .exemplos button.ativo { background: var(--accent-soft); border-color: rgba(52,211,153,.32); color: var(--accent); }
+
+  .saida-lua {
+    margin-top: 12px; padding: 12px 14px; border-radius: 9px;
+    font-family: var(--font-mono); font-size: .76rem; white-space: pre-wrap;
+    max-height: 200px; overflow: auto;
+  }
+  .saida-lua.ok { background: var(--accent-soft); border: 1px solid rgba(52,211,153,.22); color: var(--accent); }
+  .saida-lua.erro { background: rgba(251,113,133,.07); border: 1px solid rgba(251,113,133,.28); color: var(--rose); }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+</style>
 </head>
 
 <body>
@@ -23,34 +49,65 @@
 </div>
 
 <div class="container cab">
-  <h1>Sandbox de script para regras de jogo</h1>
-  <p class="pitch">Escreva script Lua no navegador para controlar entidades numa cena — com limite de memória e de instruções aplicado pelo host.</p>
+  <h1>Script de terceiro rodando sem poder fazer estrago</h1>
+  <p class="pitch">
+    O código Lua ao lado desenha a cena acima — e é o <strong>visitante</strong> quem o
+    escreve. Ele roda de verdade, num Lua 5.4 completo, mas só enxerga o que este programa
+    decidiu entregar. <code>io</code>, <code>os.execute</code> e <code>require</code>
+    simplesmente não existem lá dentro. É por isso que Roblox, WoW e Neovim escolheram Lua.
+  </p>
 
   <div class="meta">
-    <span>Lua puro</span>
-    <span>Wasmoon (Lua 5.4 em WASM)</span>
-    <span>Roda no navegador</span>
+    <span>Lua 5.4</span>
+    <span>Wasmoon (Lua em WASM)</span>
+    <span>linguagem embarcada</span>
+    <span>API controlada pelo hospedeiro</span>
+    <span>roda no navegador</span>
   </div>
 
   <div class="porque">
     <b>Por que este projeto</b>
-    Lua existe para ser embarcada com segurança em outro programa. Sandbox com orçamento de CPU é exatamente por que Roblox, WoW e Neovim a escolheram.
+    Lua existe para ser embutida com segurança dentro de outro programa. O ponto não é a
+    sintaxe: é que o hospedeiro decide exatamente quais funções o script enxerga, e o
+    script não tem como escapar dessa lista. É esse contrato que permite rodar código de
+    terceiro sem entregar a máquina junto.
   </div>
 </div>
 
 <main class="palco" id="palco">
   <div class="container">
+    <div class="duas">
 
-    <section class="painel">
-      <h2>Demonstração</h2>
-      <!-- TODO: a demo vive aqui. Regras do casco:
-           - use as classes de demo.css (.painel, .duas, .linha, .saida, .log)
-           - nada de framework: cada demo carrega so o que a linguagem dela exige
-           - se algo demora a carregar, mostre <div class="carregando">Carregando…</div>
-           - a demo precisa funcionar sem rede depois do primeiro carregamento -->
-      <p style="color:var(--text-dim)">Em construção.</p>
-    </section>
+      <section class="painel">
+        <h2>A cena <span class="hint">desenhada pelo seu Lua</span></h2>
+        <div class="tela-wrap">
+          <canvas id="tela" width="640" height="400"></canvas>
+          <div class="hud">
+            <span><b id="h-n">0</b> formas</span>
+            <span><b id="h-ms">—</b> ms/quadro</span>
+            <span><b id="h-fps">—</b> fps</span>
+          </div>
+        </div>
 
+        <div class="linha" style="margin-top:14px">
+          <button class="pri" id="aplicar">Aplicar script</button>
+          <button id="pausar">Pausar</button>
+        </div>
+
+        <div id="saida"></div>
+      </section>
+
+      <section class="painel">
+        <h2>O script <span class="hint">Lua de verdade</span></h2>
+
+        <div class="exemplos" id="exemplos"></div>
+        <p class="dica" id="explica">Carregando o Lua…</p>
+
+        <label for="lua">Lua 5.4</label>
+        <textarea id="lua" spellcheck="false" aria-label="Script Lua"></textarea>
+      </section>
+
+    </div>
   </div>
 </main>
 
@@ -63,5 +120,288 @@
   </div>
 </div>
 
+<script type="module">
+import { LuaFactory } from "https://cdn.jsdelivr.net/npm/wasmoon@1.16.0/+esm";
+
+const $ = (id) => document.getElementById(id);
+const tela = $("tela");
+const ctx = tela.getContext("2d");
+
+const PALETA = ["#34d399", "#22d3ee", "#fbbf24", "#fb7185", "#a78bfa"];
+
+const EXEMPLOS = [
+  {
+    nome: "espiral",
+    explica: "Trigonometria simples. A função <b>quadro</b> é chamada uma vez por frame e devolve a lista do que desenhar — o hospedeiro não sabe nem se importa como ela foi calculada.",
+    codigo: `-- Chamada uma vez por quadro.
+-- t = segundos desde o inicio; l, a = largura e altura da tela.
+function quadro(t, l, a)
+  local formas = {}
+  for i = 1, 140 do
+    local ang = i * 0.18 + t * 0.6
+    local raio = i * 1.5
+    formas[i] = {
+      x = l / 2 + math.cos(ang) * raio,
+      y = a / 2 + math.sin(ang) * raio * 0.62,
+      r = 2 + (i % 6),
+      cor = i % 5
+    }
+  end
+  return formas
+end`,
+  },
+  {
+    nome: "onda",
+    explica: "Duas senoides somadas. Mude os multiplicadores e aplique de novo: o Lua é recompilado na hora, sem recarregar a página.",
+    codigo: `function quadro(t, l, a)
+  local formas = {}
+  local n = 120
+  for i = 1, n do
+    local p = i / n
+    local y = math.sin(p * 9 + t * 2) * 60
+            + math.sin(p * 4 - t * 1.3) * 40
+    formas[i] = {
+      x = p * l,
+      y = a / 2 + y,
+      r = 4 + math.sin(p * 20 + t * 3) * 2,
+      cor = math.floor(p * 5) % 5
+    }
+  end
+  return formas
+end`,
+  },
+  {
+    nome: "gravidade",
+    explica: "Estado entre quadros. A tabela <b>bolas</b> vive fora da função e persiste — é o mesmo padrão que um mod de jogo usa para guardar o estado do mundo.",
+    codigo: `-- Estado guardado entre um quadro e outro.
+local bolas = {}
+for i = 1, 40 do
+  bolas[i] = {
+    x = math.random() * 640,
+    y = math.random() * 200,
+    vx = (math.random() - 0.5) * 120,
+    vy = 0,
+    r = 5 + math.random() * 9,
+    cor = math.floor(math.random() * 5)
+  }
+end
+
+local anterior = 0
+
+function quadro(t, l, a)
+  local dt = math.min(t - anterior, 0.05)
+  anterior = t
+
+  for _, b in ipairs(bolas) do
+    b.vy = b.vy + 520 * dt
+    b.x = b.x + b.vx * dt
+    b.y = b.y + b.vy * dt
+
+    if b.y + b.r > a then          -- chao
+      b.y = a - b.r
+      b.vy = -b.vy * 0.72          -- perde energia no quique
+    end
+    if b.x - b.r < 0 or b.x + b.r > l then
+      b.vx = -b.vx
+      b.x = math.max(b.r, math.min(l - b.r, b.x))
+    end
+  end
+
+  return bolas
+end`,
+  },
+  {
+    nome: "tente escapar",
+    explica: "Este script tenta sair da caixa. Aplique e veja o resultado: as funções perigosas não foram bloqueadas por uma lista negra — elas <b>não existem</b> dentro deste interpretador.",
+    codigo: `-- Cada linha abaixo tenta algo que um script hostil tentaria.
+-- Nenhuma delas funciona aqui.
+
+local tentativas = {
+  { "os.execute",  function() return os.execute("echo oi") end },
+  { "io.open",     function() return io.open("/etc/passwd") end },
+  { "require",     function() return require("socket") end },
+  { "dofile",      function() return dofile("/etc/hosts") end },
+  { "loadstring",  function() return loadstring("return 1")() end },
+}
+
+local relatorio = {}
+for _, par in ipairs(tentativas) do
+  local nome, fn = par[1], par[2]
+  local ok, err = pcall(fn)
+  relatorio[#relatorio + 1] = nome .. ": " ..
+    (ok and "PASSOU (isto seria um problema)" or "bloqueado")
+end
+
+-- O hospedeiro expos apenas isto:
+relatorio[#relatorio + 1] = ""
+relatorio[#relatorio + 1] = "disponivel: math, string, table, pcall, ipairs, print"
+
+print(table.concat(relatorio, "\\n"))
+
+function quadro(t, l, a)
+  return {}
+end`,
+  },
+];
+
+// --- Motor Lua ------------------------------------------------------------
+
+let lua = null;
+let fnQuadro = null;
+let animando = true;
+let tempo = 0, ultimoQuadro = performance.now();
+let quadros = 0, marcaFps = performance.now();
+let msUltimo = 0;
+let saidaPrint = [];
+
+// O que o script NAO enxerga. Anular no ambiente global e o equivalente, em
+// Lua, a nao ter aberto a biblioteca: nao ha lista negra para contornar,
+// porque o simbolo deixou de existir.
+const FECHAR_CAIXA = `
+io = nil
+package = nil
+require = nil
+dofile = nil
+loadfile = nil
+load = nil
+loadstring = nil
+debug = nil
+collectgarbage = nil
+os = { time = os.time, clock = os.clock, date = os.date }
+`;
+
+function mostrar(classe, texto) {
+  $("saida").innerHTML = `<div class="saida-lua ${classe}">${
+    String(texto).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]))
+  }</div>`;
+}
+
+async function aplicar(codigo) {
+  fnQuadro = null;
+  saidaPrint = [];
+
+  try {
+    // Motor novo a cada aplicacao: estado de um script nao deve vazar para o
+    // proximo, e um script quebrado nao deve deixar restos no ambiente.
+    if (lua) lua.global.close();
+    lua = await fabrica.createEngine();
+
+    lua.global.set("print", (...args) => saidaPrint.push(args.join("\t")));
+    await lua.doString(FECHAR_CAIXA);
+    await lua.doString(codigo);
+
+    const fn = lua.global.get("quadro");
+    if (typeof fn !== "function") {
+      mostrar("erro", "O script precisa definir uma função chamada quadro(t, largura, altura).");
+      return;
+    }
+    fnQuadro = fn;
+    tempo = 0;
+
+    mostrar("ok", saidaPrint.length
+      ? saidaPrint.join("\n")
+      : "Script carregado e rodando.");
+
+    // Desenha ja, sem esperar o proximo quadro de animacao. Em aba em segundo
+    // plano o requestAnimationFrame fica suspenso, e sem isto a tela ficaria
+    // preta ate a aba voltar ao primeiro plano — parecendo script quebrado.
+    desenhar();
+  } catch (e) {
+    mostrar("erro", String(e.message ?? e));
+  }
+}
+
+function desenhar() {
+  if (!fnQuadro) return;
+
+  const t0 = performance.now();
+  let formas;
+  try {
+    formas = fnQuadro(tempo, tela.width, tela.height);
+  } catch (e) {
+    mostrar("erro", "Erro durante o quadro:\n" + String(e.message ?? e));
+    fnQuadro = null;
+    return;
+  }
+  msUltimo = performance.now() - t0;
+
+  ctx.fillStyle = "#02040a";
+  ctx.fillRect(0, 0, tela.width, tela.height);
+
+  let n = 0;
+  if (formas) {
+    // Wasmoon entrega a tabela Lua como objeto com chaves 1..n.
+    const lista = Array.isArray(formas) ? formas : Object.values(formas);
+    for (const f of lista) {
+      if (!f || typeof f.x !== "number" || typeof f.y !== "number") continue;
+      const r = Math.max(0.5, Math.min(60, Number(f.r) || 3));
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = PALETA[((Number(f.cor) || 0) % PALETA.length + PALETA.length) % PALETA.length];
+      ctx.globalAlpha = 0.85;
+      ctx.fill();
+      n++;
+      if (n > 4000) break;   // teto: script que devolve milhoes trava a aba
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  $("h-n").textContent = n;
+  $("h-ms").textContent = msUltimo.toFixed(1);
+}
+
+function laco(agora) {
+  const dt = Math.min((agora - ultimoQuadro) / 1000, 0.1);
+  ultimoQuadro = agora;
+  if (animando) { tempo += dt; desenhar(); }
+
+  quadros++;
+  if (agora - marcaFps > 500) {
+    $("h-fps").textContent = Math.round((quadros * 1000) / (agora - marcaFps));
+    quadros = 0; marcaFps = agora;
+  }
+  requestAnimationFrame(laco);
+}
+
+// --- Interface ------------------------------------------------------------
+
+function montarExemplos() {
+  const caixa = $("exemplos");
+  EXEMPLOS.forEach((ex, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = ex.nome;
+    b.addEventListener("click", async () => {
+      $("lua").value = ex.codigo;
+      $("explica").innerHTML = ex.explica;
+      caixa.querySelectorAll("button").forEach((o) => o.classList.remove("ativo"));
+      b.classList.add("ativo");
+      await aplicar(ex.codigo);
+    });
+    if (i === 0) b.classList.add("ativo");
+    caixa.appendChild(b);
+  });
+}
+
+$("aplicar").addEventListener("click", () => aplicar($("lua").value));
+$("pausar").addEventListener("click", (e) => {
+  animando = !animando;
+  e.target.textContent = animando ? "Pausar" : "Continuar";
+});
+
+const fabrica = new LuaFactory();
+
+montarExemplos();
+$("lua").value = EXEMPLOS[0].codigo;
+$("explica").innerHTML = EXEMPLOS[0].explica;
+
+try {
+  await aplicar(EXEMPLOS[0].codigo);
+  requestAnimationFrame(laco);
+} catch (e) {
+  mostrar("erro", "Não consegui iniciar o Lua: " + e);
+  console.error(e);
+}
+</script>
 </body>
 </html>

@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ray tracer em C puro — Laboratório Autark</title>
+<meta name="description" content="Renderizador por traçado de raios escrito do zero em C, sem nenhuma biblioteca gráfica, compilado para WebAssembly e rodando no seu navegador.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  .tela-wrap { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: #02040a; }
+  canvas#tela { width: 100%; height: auto; display: block; cursor: grab; touch-action: none; image-rendering: auto; }
+  canvas#tela:active { cursor: grabbing; }
+
+  .hud { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; flex-wrap: wrap; font-family: var(--font-mono); font-size: .68rem; pointer-events: none; }
+  .hud span { background: rgba(3,6,12,.75); border: 1px solid var(--border); color: var(--text-dim); padding: 3px 8px; border-radius: 6px; }
+  .hud span b { color: var(--accent); font-weight: 600; }
+
+  .controles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-top: 16px; }
+  .ctrl label { display: flex; justify-content: space-between; font-size: .78rem; color: var(--text-dim); margin-bottom: 6px; }
+  .ctrl label b { color: var(--accent); font-family: var(--font-mono); }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+  .custo {
+    margin-top: 16px; padding: 13px 15px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    font-size: .84rem; color: var(--text-muted);
+  }
+  .custo b { color: var(--accent); }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+
+  .num-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 4px; }
+  .num-grid .k { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; }
+  .num-grid .k .n { font-family: var(--font-mono); font-size: 1.15rem; color: var(--accent); line-height: 1.2; }
+  .num-grid .k .l { font-size: .7rem; color: var(--text-dim); margin-top: 3px; }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">C</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/c-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Um renderizador 3D em 260 linhas de C</h1>
+  <p class="pitch">
+    Sem OpenGL, sem SDL, sem biblioteca gráfica nenhuma. O programa recebe um bloco de
+    memória e escreve <strong>pixel a pixel</strong> dentro dele, resolvendo à mão a
+    equação de interseção entre reta e esfera. A página só pega esse bloco e mostra.
+  </p>
+
+  <div class="meta">
+    <span>C puro (C99)</span>
+    <span>0 dependências</span>
+    <span>compilado com emcc -O3</span>
+    <span>17 KB de WebAssembly</span>
+    <span>roda no navegador</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    C é aritmética de ponteiro e controle de memória. Um ray tracer é matemática pura
+    escrevendo num buffer — exatamente o que C faz melhor, e sem nenhuma camada no meio
+    entre o cálculo e o pixel. Também é honesto sobre o custo: dá para ver o preço de
+    cada reflexão a mais.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>A cena <span class="hint">arraste para girar</span></h2>
+      <div class="tela-wrap">
+        <canvas id="tela" width="640" height="400"></canvas>
+        <div class="hud">
+          <span><b id="h-ms">—</b> ms/quadro</span>
+          <span><b id="h-res">—</b></span>
+          <span><b id="h-raios">—</b> raios</span>
+        </div>
+      </div>
+
+      <div class="controles">
+        <div class="ctrl">
+          <label for="r-res">resolução <b id="v-res">640×400</b></label>
+          <input type="range" id="r-res" min="240" max="960" step="80" value="640">
+        </div>
+        <div class="ctrl">
+          <label for="r-aa">amostras por pixel <b id="v-aa">4</b></label>
+          <input type="range" id="r-aa" min="1" max="4" step="1" value="2">
+        </div>
+        <div class="ctrl">
+          <label for="r-prof">reflexões <b id="v-prof">3</b></label>
+          <input type="range" id="r-prof" min="1" max="8" step="1" value="3">
+        </div>
+      </div>
+
+      <div class="linha" style="margin-top:14px">
+        <button class="pri" id="animar">Pausar</button>
+        <button id="um">Renderizar 1 quadro</button>
+      </div>
+
+      <div class="custo" id="custo">—</div>
+    </section>
+
+    <section class="painel">
+      <h2>O custo de cada raio</h2>
+      <p class="dica">
+        Traçado de raios não tem placa de vídeo ajudando aqui: é a <b>CPU</b> resolvendo
+        uma equação de segundo grau por objeto, por amostra, por pixel. Suba as amostras
+        para 4 e veja o tempo por quadro multiplicar por <b>dezesseis</b> — porque são
+        4×4 raios em cada pixel.
+      </p>
+
+      <div class="num-grid">
+        <div class="k"><div class="n" id="k-px">—</div><div class="l">pixels por quadro</div></div>
+        <div class="k"><div class="n" id="k-amostras">—</div><div class="l">amostras por pixel</div></div>
+        <div class="k"><div class="n" id="k-rps">—</div><div class="l">raios por segundo</div></div>
+        <div class="k"><div class="n" id="k-wasm">17 KB</div><div class="l">tamanho do WASM</div></div>
+      </div>
+
+      <p class="dica" style="margin-top:18px">
+        O xadrez do chão é uma linha de código: a paridade da soma das coordenadas
+        inteiras. A esfera do meio reflete a cena inteira porque cada raio que a atinge
+        dispara <b>outro</b> raio — e é essa recursão que o controle de reflexões limita.
+      </p>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/c-puro">Ler o raytracer.c</a>
+  </div>
+</div>
+
+<script src="raytracer.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const tela = $("tela");
+const ctx = tela.getContext("2d");
+
+let Modulo = null, renderizar = null, obterBuffer = null, raiosLancados = null;
+let imagem = null;
+
+let largura = 640, altura = 400;
+let aa = 2, prof = 3;
+let orbita = { x: 0.7, y: 0.22 };
+let tempo = 0, animando = true;
+let ultimoMs = 0;
+
+function ajustarTamanho(novaLargura) {
+  largura = novaLargura;
+  altura = Math.round(novaLargura * 0.625);
+  tela.width = largura;
+  tela.height = altura;
+  imagem = ctx.createImageData(largura, altura);
+  $("v-res").textContent = `${largura}×${altura}`;
+  $("h-res").textContent = `${largura}×${altura}`;
+  $("k-px").textContent = (largura * altura).toLocaleString("pt-BR");
+}
+
+function quadro(dt) {
+  if (!Modulo) return;
+  if (animando) tempo += dt;
+
+  const t0 = performance.now();
+  renderizar(largura, altura, aa, prof, orbita.x, orbita.y, tempo);
+  const ms = performance.now() - t0;
+
+  const ponteiro = obterBuffer(largura, altura);
+  if (!ponteiro) return;
+
+  // HEAPU8 precisa ser lido a cada quadro: com ALLOW_MEMORY_GROWTH o heap pode
+  // ser realocado, e a referencia antiga fica destacada (detached).
+  const bytes = Modulo.HEAPU8.subarray(ponteiro, ponteiro + largura * altura * 4);
+  imagem.data.set(bytes);
+  ctx.putImageData(imagem, 0, 0);
+
+  const raios = raiosLancados();
+  ultimoMs = ms;
+
+  $("h-ms").textContent = ms.toFixed(0);
+  $("h-raios").textContent = raios > 1e6
+    ? (raios / 1e6).toFixed(1) + "M"
+    : Math.round(raios / 1000) + "k";
+  $("k-rps").textContent = ms > 0
+    ? Math.round(raios / (ms / 1000) / 1e6).toLocaleString("pt-BR") + "M"
+    : "—";
+  $("k-amostras").textContent = aa * aa;
+
+  const porPixel = raios / (largura * altura);
+  $("custo").innerHTML =
+    `<b>${ms.toFixed(0)} ms</b> para ${(largura * altura).toLocaleString("pt-BR")} pixels · ` +
+    `<b>${raios.toLocaleString("pt-BR")}</b> raios lançados · ` +
+    `${porPixel.toFixed(1)} raios por pixel`;
+}
+
+let anterior = performance.now();
+function laco(agora) {
+  const dt = Math.min((agora - anterior) / 1000, 0.1);
+  anterior = agora;
+  // Quando pausado o quadro so e redesenhado se algo mudou; sem isso a CPU
+  // ficaria 100% ocupada renderizando a mesma imagem.
+  if (animando) quadro(dt);
+  requestAnimationFrame(laco);
+}
+
+// --- Controles ------------------------------------------------------------
+
+$("r-res").addEventListener("input", (e) => {
+  ajustarTamanho(Number(e.target.value));
+  if (!animando) quadro(0);
+});
+$("r-aa").addEventListener("input", (e) => {
+  aa = Number(e.target.value);
+  $("v-aa").textContent = aa * aa;
+  if (!animando) quadro(0);
+});
+$("r-prof").addEventListener("input", (e) => {
+  prof = Number(e.target.value);
+  $("v-prof").textContent = prof;
+  if (!animando) quadro(0);
+});
+
+$("animar").addEventListener("click", (e) => {
+  animando = !animando;
+  e.target.textContent = animando ? "Pausar" : "Animar";
+  if (!animando) quadro(0);
+});
+$("um").addEventListener("click", () => quadro(0));
+
+let arrastando = false, ultimo = null;
+tela.addEventListener("pointerdown", (e) => {
+  arrastando = true; ultimo = { x: e.clientX, y: e.clientY };
+  tela.setPointerCapture(e.pointerId);
+});
+tela.addEventListener("pointermove", (e) => {
+  if (!arrastando) return;
+  orbita.x -= (e.clientX - ultimo.x) * 0.008;
+  orbita.y += (e.clientY - ultimo.y) * 0.004;
+  orbita.y = Math.max(-0.3, Math.min(1.2, orbita.y));
+  ultimo = { x: e.clientX, y: e.clientY };
+  if (!animando) quadro(0);
+});
+tela.addEventListener("pointerup", () => { arrastando = false; });
+tela.addEventListener("pointercancel", () => { arrastando = false; });
+
+// --- Início ---------------------------------------------------------------
+
+criarRaytracer().then((m) => {
+  Modulo = m;
+  renderizar = m.cwrap("renderizar", null,
+    ["number", "number", "number", "number", "number", "number", "number"]);
+  obterBuffer = m.cwrap("obter_buffer", "number", ["number", "number"]);
+  raiosLancados = m.cwrap("raios_lancados", "number", []);
+
+  $("v-aa").textContent = aa * aa;
+  ajustarTamanho(largura);
+  quadro(0);
+  requestAnimationFrame(laco);
+}).catch((e) => {
+  $("custo").innerHTML = `<span style="color:var(--rose)">Não consegui carregar o WebAssembly: ${e}</span>`;
+  console.error(e);
+});
+</script>
+</body>
+</html>

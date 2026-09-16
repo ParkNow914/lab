@@ -3,11 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Resolvedor de Sudoku com backtracking — Laboratório Autark</title>
-<meta name="description" content="Gera e resolve tabuleiros com propagação de restrições, mostrando a árvore de decisão e cada retrocesso em tempo real.">
+<title>Sudoku com backtracking em Python — Laboratório Autark</title>
+<meta name="description" content="Resolvedor de Sudoku escrito em Python puro, rodando no navegador via Pyodide, com cada tentativa e cada retrocesso do algoritmo visíveis na tela.">
 <meta name="color-scheme" content="dark">
 <link rel="stylesheet" href="/assets/fonts/fonts.css">
 <link rel="stylesheet" href="../demo.css">
+<style>
+  .grade-sudoku {
+    display: grid; grid-template-columns: repeat(9, 1fr); gap: 0;
+    width: 100%; max-width: 420px; margin: 0 auto;
+    border: 2px solid var(--text-dim); border-radius: 6px; overflow: hidden;
+    aspect-ratio: 1; background: var(--border);
+  }
+  .cel {
+    display: flex; align-items: center; justify-content: center;
+    background: #070c18; font-family: var(--font-mono); font-size: clamp(.8rem, 3.4vw, 1.15rem);
+    color: var(--text-muted); aspect-ratio: 1;
+    border-right: 1px solid rgba(255,255,255,.06);
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    transition: background .12s, color .12s;
+  }
+  /* Linhas grossas separando os blocos 3x3 */
+  .cel:nth-child(3n) { border-right: 1px solid var(--text-dim); }
+  .cel:nth-child(9n) { border-right: none; }
+  .grade-sudoku > .cel:nth-child(n+19):nth-child(-n+27),
+  .grade-sudoku > .cel:nth-child(n+46):nth-child(-n+54) { border-bottom: 1px solid var(--text-dim); }
+
+  .cel.fixa { color: var(--text); font-weight: 600; background: #0b1120; }
+  .cel.tentando { background: rgba(52,211,153,.22); color: var(--accent); }
+  .cel.voltando { background: rgba(251,113,133,.22); color: var(--rose); }
+  .cel.resolvida { color: var(--accent); }
+
+  .num-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 10px; margin-top: 16px; }
+  .num-grid .k { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; }
+  .num-grid .k .n { font-family: var(--font-mono); font-size: 1.15rem; color: var(--accent); line-height: 1.2; }
+  .num-grid .k .l { font-size: .7rem; color: var(--text-dim); margin-top: 3px; }
+
+  pre.codigo {
+    background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; font-size: .74rem; line-height: 1.55; overflow: auto; margin: 0;
+    max-height: 480px; color: var(--text-muted);
+  }
+  pre.codigo .kw { color: var(--cyan); }
+  pre.codigo .co { color: var(--text-dim); font-style: italic; }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica .r { color: var(--rose); font-weight: 600; }
+</style>
 </head>
 
 <body>
@@ -23,34 +66,71 @@
 </div>
 
 <div class="container cab">
-  <h1>Resolvedor de Sudoku com backtracking</h1>
-  <p class="pitch">Gera e resolve tabuleiros com propagação de restrições, mostrando a árvore de decisão e cada retrocesso em tempo real.</p>
+  <h1>Backtracking que você vê acontecer</h1>
+  <p class="pitch">
+    O algoritmo tenta um número, segue em frente e, quando chega num beco sem saída,
+    <strong>volta e desfaz</strong>. Todo mundo aprende isso na teoria; aqui cada tentativa
+    aparece em verde e cada retrocesso em vermelho. O Python que resolve está à direita,
+    rodando de verdade no seu navegador.
+  </p>
 
   <div class="meta">
-    <span>Python puro</span>
-    <span>Pyodide</span>
-    <span>Roda no navegador</span>
+    <span>Python 3 puro</span>
+    <span>Pyodide (CPython em WASM)</span>
+    <span>sem bibliotecas</span>
+    <span>recursão + backtracking</span>
+    <span>roda no navegador</span>
   </div>
 
   <div class="porque">
     <b>Por que este projeto</b>
-    Python é a linguagem de pensar em voz alta. Backtracking com geradores e recursão fica quase idêntico ao pseudocódigo — e roda no navegador via Pyodide.
+    Python é a linguagem de pensar em voz alta: o resolvedor abaixo é quase idêntico ao
+    pseudocódigo que se escreveria num papel. É isso que a torna a linguagem em que
+    algoritmo se ensina — e, com Pyodide, o mesmo CPython roda aqui sem servidor nenhum.
   </div>
 </div>
 
 <main class="palco" id="palco">
   <div class="container">
+    <div class="duas">
 
-    <section class="painel">
-      <h2>Demonstração</h2>
-      <!-- TODO: a demo vive aqui. Regras do casco:
-           - use as classes de demo.css (.painel, .duas, .linha, .saida, .log)
-           - nada de framework: cada demo carrega so o que a linguagem dela exige
-           - se algo demora a carregar, mostre <div class="carregando">Carregando…</div>
-           - a demo precisa funcionar sem rede depois do primeiro carregamento -->
-      <p style="color:var(--text-dim)">Em construção.</p>
-    </section>
+      <section class="painel">
+        <h2>O tabuleiro</h2>
+        <div class="grade-sudoku" id="grade"></div>
 
+        <div class="linha" style="margin-top:16px">
+          <button class="pri" id="resolver" disabled>Resolver</button>
+          <button id="novo" disabled>Outro tabuleiro</button>
+          <button id="dificil" disabled>Caso difícil</button>
+        </div>
+
+        <div class="linha" style="margin-top:12px">
+          <div style="flex:1 1 180px">
+            <label for="veloc">velocidade da animação</label>
+            <input type="range" id="veloc" min="0" max="100" value="70" style="width:100%;accent-color:var(--accent)">
+          </div>
+        </div>
+
+        <div class="num-grid">
+          <div class="k"><div class="n" id="k-passos">—</div><div class="l">tentativas</div></div>
+          <div class="k"><div class="n" id="k-volta">—</div><div class="l">retrocessos</div></div>
+          <div class="k"><div class="n" id="k-ms">—</div><div class="l">tempo do Python</div></div>
+        </div>
+
+        <p class="dica" id="estado" style="margin-top:14px">Carregando o Python…</p>
+      </section>
+
+      <section class="painel">
+        <h2>O resolvedor <span class="hint">Python de verdade</span></h2>
+        <p class="dica">
+          Repare que não há laço de repetição controlando a busca. A recursão <b>é</b> a
+          busca: <b>tenta</b> um valor, desce um nível, e se o nível de baixo falhar,
+          <span class="r">desfaz</span> e tenta o próximo.
+        </p>
+        <pre class="codigo" id="fonte"></pre>
+      </section>
+
+    </div>
   </div>
 </main>
 
@@ -63,5 +143,254 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/pyodide/v0.28.3/full/pyodide.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+
+// O Python fica numa constante para ser ao mesmo tempo o que roda e o que a
+// pagina mostra. Duas copias divergiriam na primeira correcao.
+//
+// CUIDADO: nada de crase nem de ${ } aqui dentro, nem em comentario ou
+// docstring. Crase encerra o template literal no meio do Python e o resto do
+// arquivo vira erro de sintaxe do JavaScript — a pagina inteira morre calada.
+const PYTHON = String.raw`
+import random
+
+def candidatos(g, lin, col):
+    """Valores que ainda cabem nesta celula."""
+    usados = set(g[lin])                       # a linha
+    usados |= {g[i][col] for i in range(9)}    # a coluna
+    bl, bc = 3 * (lin // 3), 3 * (col // 3)    # o bloco 3x3
+    usados |= {g[bl + i][bc + j] for i in range(3) for j in range(3)}
+    return [v for v in range(1, 10) if v not in usados]
+
+
+def resolver(g, eventos, limite=60000):
+    """Backtracking puro. Devolve True se achou solucao."""
+
+    # Escolher primeiro a celula com MENOS opcoes corta a busca drasticamente:
+    # errar cedo e barato, errar tarde custa a subarvore inteira.
+    melhor, menos = None, 10
+    for lin in range(9):
+        for col in range(9):
+            if g[lin][col] == 0:
+                n = len(candidatos(g, lin, col))
+                if n < menos:
+                    melhor, menos = (lin, col), n
+                    if n <= 1:
+                        break
+
+    if melhor is None:
+        return True                            # nao sobrou vazia: acabou
+
+    lin, col = melhor
+    for v in candidatos(g, lin, col):
+        g[lin][col] = v
+        if len(eventos) < limite:
+            eventos.append((lin, col, v, 1))   # 1 = tentando
+
+        if resolver(g, eventos, limite):
+            return True
+
+        g[lin][col] = 0                        # o passo que da nome ao metodo
+        if len(eventos) < limite:
+            eventos.append((lin, col, 0, 0))   # 0 = retrocedendo
+
+    return False
+
+
+def gerar(pistas=32, semente=None):
+    """Gera um tabuleiro resolvido e apaga celulas ate sobrar o numero pedido."""
+    if semente is not None:
+        random.seed(semente)
+
+    g = [[0] * 9 for _ in range(9)]
+
+    # Preencher a diagonal primeiro: os tres blocos nao se afetam, entao isso
+    # e sempre valido e ja quebra a simetria do tabuleiro vazio.
+    for b in range(0, 9, 3):
+        nums = list(range(1, 10))
+        random.shuffle(nums)
+        for i in range(3):
+            for j in range(3):
+                g[b + i][b + j] = nums[i * 3 + j]
+
+    resolver(g, [])
+
+    celulas = [(i, j) for i in range(9) for j in range(9)]
+    random.shuffle(celulas)
+    for i, j in celulas[: 81 - pistas]:
+        g[i][j] = 0
+    return g
+`;
+
+// --- Grade ---------------------------------------------------------------
+
+const celulas = [];
+(function montarGrade() {
+  const grade = $("grade");
+  for (let i = 0; i < 81; i++) {
+    const d = document.createElement("div");
+    d.className = "cel";
+    grade.appendChild(d);
+    celulas.push(d);
+  }
+})();
+
+function desenhar(tabuleiro, fixas) {
+  for (let i = 0; i < 81; i++) {
+    const v = tabuleiro[Math.floor(i / 9)][i % 9];
+    const c = celulas[i];
+    c.textContent = v === 0 ? "" : v;
+    c.className = "cel" + (fixas && fixas[i] ? " fixa" : "");
+  }
+}
+
+// --- Pyodide -------------------------------------------------------------
+
+let pyodide = null;
+let tabuleiroInicial = null;
+let fixas = null;
+let animacao = null;
+
+function realcarBotoes(ligado) {
+  for (const id of ["resolver", "novo", "dificil"]) $(id).disabled = !ligado;
+}
+
+async function novoTabuleiro(pistas, semente) {
+  if (animacao) { clearTimeout(animacao); animacao = null; }
+
+  const g = pyodide.runPython(`gerar(${pistas}, ${semente ?? "None"})`).toJs();
+  tabuleiroInicial = g.map((l) => Array.from(l));
+  fixas = tabuleiroInicial.flat().map((v) => v !== 0);
+
+  desenhar(tabuleiroInicial, fixas);
+  $("k-passos").textContent = "—";
+  $("k-volta").textContent = "—";
+  $("k-ms").textContent = "—";
+  const vazias = fixas.filter((f) => !f).length;
+  $("estado").innerHTML = `Tabuleiro com <b>${81 - vazias}</b> pistas e ${vazias} células vazias. Clique em Resolver.`;
+}
+
+async function resolverAgora() {
+  if (animacao) { clearTimeout(animacao); animacao = null; }
+
+  realcarBotoes(false);
+  $("estado").textContent = "O Python está resolvendo…";
+  desenhar(tabuleiroInicial, fixas);
+
+  // Deixa o navegador pintar o "resolvendo" antes de travar na conta.
+  await new Promise((r) => setTimeout(r, 30));
+
+  pyodide.globals.set("entrada", tabuleiroInicial.map((l) => [...l]));
+
+  const t0 = performance.now();
+  const resultado = pyodide.runPython(`
+g = [list(l) for l in entrada.to_py()]
+eventos = []
+ok = resolver(g, eventos)
+(ok, g, eventos)
+`).toJs();
+  const ms = performance.now() - t0;
+
+  const [ok, solucao, eventos] = resultado;
+
+  const tentativas = eventos.filter((e) => e[3] === 1).length;
+  const retrocessos = eventos.filter((e) => e[3] === 0).length;
+
+  $("k-passos").textContent = tentativas.toLocaleString("pt-BR");
+  $("k-volta").textContent = retrocessos.toLocaleString("pt-BR");
+  $("k-ms").textContent = ms.toFixed(0) + " ms";
+
+  if (!ok) {
+    $("estado").innerHTML = `<span style="color:var(--rose)">Este tabuleiro não tem solução.</span>`;
+    realcarBotoes(true);
+    return;
+  }
+
+  animar(eventos, solucao.map((l) => Array.from(l)), retrocessos);
+}
+
+function animar(eventos, solucao, retrocessos) {
+  const veloc = Number($("veloc").value);
+  // Passo por tique cresce com a velocidade: com muitos eventos, animar de um
+  // em um levaria minutos.
+  const porTique = Math.max(1, Math.round((eventos.length / 260) * (veloc / 50) + veloc / 12));
+  const intervalo = veloc >= 99 ? 0 : Math.max(4, 40 - veloc / 3);
+
+  const atual = tabuleiroInicial.map((l) => [...l]);
+  let i = 0;
+  let ultimasCelulas = [];
+
+  function tique() {
+    for (const c of ultimasCelulas) {
+      c.classList.remove("tentando", "voltando");
+    }
+    ultimasCelulas = [];
+
+    const fim = Math.min(i + porTique, eventos.length);
+    for (; i < fim; i++) {
+      const [lin, col, v, acao] = eventos[i];
+      atual[lin][col] = v;
+      const c = celulas[lin * 9 + col];
+      c.textContent = v === 0 ? "" : v;
+      c.classList.add(acao === 1 ? "tentando" : "voltando");
+      ultimasCelulas.push(c);
+    }
+
+    if (i < eventos.length) {
+      animacao = setTimeout(tique, intervalo);
+      return;
+    }
+
+    // A lista de eventos tem teto; se estourou, o fim e desenhado de uma vez.
+    desenhar(solucao, fixas);
+    for (let k = 0; k < 81; k++) if (!fixas[k]) celulas[k].classList.add("resolvida");
+
+    $("estado").innerHTML = retrocessos > 0
+      ? `Resolvido. O algoritmo precisou <b>voltar atrás ${retrocessos.toLocaleString("pt-BR")} vezes</b> antes de fechar o tabuleiro.`
+      : `Resolvido <b>sem nenhum retrocesso</b>: a heurística de começar pela célula com menos opções acertou o caminho de primeira.`;
+    realcarBotoes(true);
+    animacao = null;
+  }
+
+  tique();
+}
+
+// --- Destaque simples do fonte -------------------------------------------
+
+function realcar(codigo) {
+  const esc = codigo.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  return esc
+    .replace(/(^|\n)(\s*)(#.*)/g, '$1$2<span class="co">$3</span>')
+    .replace(/(&quot;&quot;&quot;[\s\S]*?&quot;&quot;&quot;|"""[\s\S]*?""")/g, '<span class="co">$1</span>')
+    .replace(/\b(def|for|in|if|else|elif|return|import|not|and|or|None|True|False|break|set|range|len)\b/g,
+             '<span class="kw">$1</span>');
+}
+
+$("fonte").innerHTML = realcar(PYTHON.trim());
+
+// --- Início ---------------------------------------------------------------
+
+$("resolver").addEventListener("click", resolverAgora);
+$("novo").addEventListener("click", () => novoTabuleiro(30));
+$("dificil").addEventListener("click", () => novoTabuleiro(24));
+
+(async () => {
+  try {
+    pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.28.3/full/" });
+    pyodide.runPython(PYTHON);
+    // Semente fixa na primeira carga, escolhida por busca: 28 pistas com a
+    // semente 6 resolvem em ~18ms e exigem 36 retrocessos. Um tabuleiro facil
+    // demais a heuristica resolve sem voltar atras nenhuma vez — e a demo
+    // inteira existe para mostrar o retrocesso acontecendo.
+    await novoTabuleiro(28, 6);
+    realcarBotoes(true);
+  } catch (e) {
+    $("estado").innerHTML = `<span style="color:var(--rose)">Não consegui carregar o Python: ${e}</span>`;
+    console.error(e);
+  }
+})();
+</script>
 </body>
 </html>

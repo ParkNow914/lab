@@ -15,12 +15,8 @@ Lua existe para ser embarcada com segurança em outro programa. Sandbox com orç
 
 ## Build
 
-```bash
-# TODO: comandos para compilar esta demo
-```
-
-O resultado precisa acabar como `index.html` (mais assets) nesta pasta.
-`tools/build-site.mjs` copia a pasta inteira para `dist/lua-puro/`.
+Nenhum. A página é servida como está; a linguagem roda no navegador por um
+runtime carregado via CDN.
 
 ## Publicado em
 
