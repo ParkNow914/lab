@@ -30,21 +30,13 @@ jobs:
       - name: Validar catálogo
         run: node tools/build-catalog.mjs --check
 
+      # site/catalog.json nao e versionado: ele nasce aqui, a partir de
+      # catalog/*.json, e o status de cada projeto e derivado da existencia da
+      # pasta. Assim nenhum card consegue prometer uma demo que nao abre.
       - name: Montar o site
         run: |
           node tools/build-catalog.mjs
           node tools/build-site.mjs
-
-      # Card que promete demo sem a pasta existir e a unica mentira que esta
-      # pagina pode contar. build-site.mjs corrige o status sozinho; aqui
-      # conferimos que o commit ja estava coerente.
-      - name: Conferir que nada ficou dessincronizado
-        run: |
-          if ! git diff --quiet -- site/catalog.json; then
-            echo "::error::site/catalog.json esta desatualizado. Rode: node tools/build-catalog.mjs && node tools/build-site.mjs"
-            git diff -- site/catalog.json
-            exit 1
-          fi
 
       - uses: actions/upload-artifact@v4
         with:
