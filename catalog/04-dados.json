@@ -1,0 +1,124 @@
+{
+  "grupo": "Dados, ciência e automação",
+  "ordem": 4,
+  "descricao": "Linguagens de consulta, estatística, cálculo numérico e script de sistema. Várias ganharam runtime WASM oficial nos últimos anos — SQL e R rodam inteiros no navegador.",
+  "projetos": [
+    {
+      "id": "sql-puro",
+      "lang": "SQL", "langId": "sql", "kind": "pure", "framework": null,
+      "title": "Laboratório de consultas com dados reais",
+      "pitch": "Banco completo carregado no navegador: escreva SELECT, JOIN, CTE recursiva e window function sobre dados de verdade e veja o plano de execução.",
+      "why": "SQL é a linguagem mais duradoura da computação e a que mais separa quem sabe de quem finge. Window function e CTE recursiva são a fronteira onde isso fica visível.",
+      "runtime": "wasm", "toolchain": "DuckDB-WASM",
+      "status": "planned", "tags": ["consulta", "window function", "plano de execução"]
+    },
+    {
+      "id": "sql-plpgsql",
+      "lang": "PL/pgSQL", "langId": "sql", "kind": "framework", "framework": "PostgreSQL",
+      "title": "Regra de negócio dentro do banco",
+      "pitch": "Trigger, função e constraint garantindo integridade que a aplicação não consegue furar — nem por bug, nem por acesso direto.",
+      "why": "Mover invariante crítica para o banco é decisão de arquitetura que muita gente nem considera. Em sistema financeiro é o que salva.",
+      "runtime": "wasm", "toolchain": "PGlite (Postgres em WASM)",
+      "status": "planned", "tags": ["trigger", "integridade", "Postgres"]
+    },
+    {
+      "id": "r-puro",
+      "lang": "R", "langId": "r", "kind": "pure", "framework": null,
+      "title": "Laboratório de inferência estatística",
+      "pitch": "Teste de hipótese, intervalo de confiança e regressão sobre dados que você ajusta — com o gráfico se redesenhando a cada mudança.",
+      "why": "R é estatística de verdade, não 'análise de dados'. Mostrar teste de hipótese bem-feito diferencia de quem só sabe plotar gráfico bonito.",
+      "runtime": "wasm", "toolchain": "WebR",
+      "status": "planned", "tags": ["estatística", "inferência", "WebR"]
+    },
+    {
+      "id": "r-shiny",
+      "lang": "R", "langId": "r", "kind": "framework", "framework": "Shiny",
+      "title": "Painel interativo com Shiny",
+      "pitch": "Dashboard reativo onde cada filtro recalcula o modelo e redesenha os gráficos, rodando inteiro no navegador.",
+      "why": "Shiny é como estatístico entrega análise para quem decide. Shinylive roda sem servidor, então fica de graça e sempre no ar.",
+      "runtime": "wasm", "toolchain": "Shinylive",
+      "status": "planned", "tags": ["dashboard", "reativo", "sem servidor"]
+    },
+    {
+      "id": "julia-puro",
+      "lang": "Julia", "langId": "julia", "kind": "pure", "framework": null,
+      "title": "Equações diferenciais em tempo real",
+      "pitch": "Sistema caótico (atrator de Lorenz) integrado numericamente, com parâmetros ajustáveis e trajetória desenhada ao vivo.",
+      "why": "Julia resolve o 'problema das duas linguagens': prototipar como Python, rodar como C. Cálculo numérico pesado é onde isso importa.",
+      "runtime": "container", "toolchain": "Julia + Genie",
+      "status": "planned", "tags": ["numérico", "caos", "EDO"]
+    },
+    {
+      "id": "octave-puro",
+      "lang": "MATLAB / Octave", "langId": "octave", "kind": "pure", "framework": null,
+      "title": "Processamento de sinal e filtro digital",
+      "pitch": "Sinal com ruído passando por FFT e filtros projetados na hora — espectro e forma de onda lado a lado.",
+      "why": "É a linguagem da engenharia elétrica e de controle. FFT e filtro são o pão com manteiga de quem trabalha com sinal.",
+      "runtime": "wasm", "toolchain": "Octave compilado para WASM",
+      "status": "planned", "tags": ["DSP", "FFT", "engenharia"]
+    },
+    {
+      "id": "bash-puro",
+      "lang": "Bash", "langId": "bash", "kind": "pure", "framework": null,
+      "title": "Pipeline de análise de log só com coreutils",
+      "pitch": "Gigabytes de log virando relatório com grep, awk, sort e uniq encadeados — sem instalar nada, sem escrever programa.",
+      "why": "Saber compor ferramenta Unix resolve em uma linha o que viraria um script de 200. É a habilidade que mais economiza tempo em servidor de cliente.",
+      "runtime": "terminal", "toolchain": "Bash em WASM (v86 / busybox-wasm)",
+      "status": "planned", "tags": ["Unix", "pipeline", "sysadmin"]
+    },
+    {
+      "id": "awk-puro",
+      "lang": "AWK", "langId": "awk", "kind": "pure", "framework": null,
+      "title": "Relatório financeiro numa linha só",
+      "pitch": "Extrato em CSV virando resumo por categoria com totais e média — em um único comando AWK.",
+      "why": "AWK é de 1977 e continua sendo a forma mais curta de transformar texto tabular. Densidade é o argumento.",
+      "runtime": "terminal", "toolchain": "goawk → WASM",
+      "status": "planned", "tags": ["texto", "CSV", "densidade"]
+    },
+    {
+      "id": "powershell-puro",
+      "lang": "PowerShell", "langId": "powershell", "kind": "pure", "framework": null,
+      "title": "Auditoria de ambiente Windows",
+      "pitch": "Script que inventaria serviços, permissões, tarefas agendadas e software instalado, exportando relatório objeto a objeto.",
+      "why": "PowerShell passa objeto pelo pipe, não texto — diferença fundamental para Bash. Em ambiente corporativo Windows é a ferramenta de administração.",
+      "runtime": "cast", "toolchain": "PowerShell 7",
+      "status": "planned", "tags": ["Windows", "objetos", "automação"]
+    },
+    {
+      "id": "lua-puro",
+      "lang": "Lua", "langId": "lua", "kind": "pure", "framework": null,
+      "title": "Sandbox de script para regras de jogo",
+      "pitch": "Escreva script Lua no navegador para controlar entidades numa cena — com limite de memória e de instruções aplicado pelo host.",
+      "why": "Lua existe para ser embarcada com segurança em outro programa. Sandbox com orçamento de CPU é exatamente por que Roblox, WoW e Neovim a escolheram.",
+      "runtime": "wasm", "toolchain": "Wasmoon (Lua 5.4 em WASM)",
+      "status": "planned", "tags": ["embarcada", "sandbox", "scripting"]
+    },
+    {
+      "id": "lua-love",
+      "lang": "Lua", "langId": "lua", "kind": "framework", "framework": "LÖVE 2D",
+      "title": "Plataforma 2D com LÖVE",
+      "pitch": "Jogo de plataforma com física, tilemap, inimigos e checkpoint, jogável direto na página.",
+      "why": "LÖVE é o framework de jogo em Lua mais usado, e o love.js empacota para navegador. Jogo é a demo que prende visitante.",
+      "runtime": "wasm", "toolchain": "love.js (Emscripten)",
+      "status": "planned", "tags": ["jogo", "física", "tilemap"]
+    },
+    {
+      "id": "tcl-puro",
+      "lang": "Tcl", "langId": "tcl", "kind": "pure", "framework": null,
+      "title": "Automação de sessão interativa com Expect",
+      "pitch": "Script conversando com um programa interativo — login, senha, menu — automatizando o que só existia como tela.",
+      "why": "Expect resolve o problema de automatizar programa que não tem API. Ainda é padrão em equipamento de rede e ferramenta de EDA.",
+      "runtime": "cast", "toolchain": "Tcl + Expect",
+      "status": "planned", "tags": ["automação", "Expect", "rede"]
+    },
+    {
+      "id": "vba-puro",
+      "lang": "VBA", "langId": "vba", "kind": "pure", "framework": null,
+      "title": "Planilha que vira sistema de gestão",
+      "pitch": "Excel com formulário, validação, relatório e envio automático — o 'sistema' que a maioria das pequenas empresas realmente usa.",
+      "why": "Muito cliente meu chega com um Excel que virou o ERP da empresa. Saber ler e migrar isso é o primeiro passo de metade dos projetos reais.",
+      "runtime": "cast", "toolchain": "Excel + VBA",
+      "status": "planned", "tags": ["Excel", "pequena empresa", "migração"]
+    }
+  ]
+}

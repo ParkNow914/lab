@@ -1,0 +1,187 @@
+{
+  "grupo": "Sistemas e baixo nível",
+  "ordem": 1,
+  "descricao": "Linguagens compiladas, controle explícito de memória, performance. Quase todas compilam para WebAssembly — rodam no navegador do visitante sem servidor nenhum.",
+  "projetos": [
+    {
+      "id": "c-puro",
+      "lang": "C", "langId": "c", "kind": "pure", "framework": null,
+      "title": "Ray tracer em C puro",
+      "pitch": "Renderizador por traçado de raios escrito do zero: esferas, reflexão, sombra e antialiasing, sem nenhuma biblioteca gráfica.",
+      "why": "C é aritmética de ponteiro e controle de memória. Um ray tracer é matemática pura escrevendo pixel a pixel num buffer — exatamente o que C faz melhor, e o resultado é visual.",
+      "runtime": "wasm", "toolchain": "emcc -O3 -sSTANDALONE_WASM",
+      "status": "planned", "tags": ["gráficos", "matemática", "sem dependências"]
+    },
+    {
+      "id": "c-raylib",
+      "lang": "C", "langId": "c", "kind": "framework", "framework": "Raylib",
+      "title": "Breakout completo com Raylib",
+      "pitch": "Arkanoid jogável no navegador: colisão, níveis, placar e áudio — teclado e toque.",
+      "why": "Raylib é o framework C mais usado para gráficos e tem suporte oficial a Emscripten. Mostra C fazendo algo interativo, não só terminal.",
+      "runtime": "wasm", "toolchain": "emcc + raylib web build",
+      "status": "planned", "tags": ["jogo", "canvas", "áudio"]
+    },
+    {
+      "id": "cpp-puro",
+      "lang": "C++", "langId": "cpp", "kind": "pure", "framework": null,
+      "title": "Motor de física 2D do zero",
+      "pitch": "Corpos rígidos com integração de Verlet, colisão por SAT e resolução de impulso. Arraste os objetos e veja a simulação reagir.",
+      "why": "C++ vive onde performance encontra abstração. Um motor de física usa templates, RAII e structs alinhadas — e roda a 60fps com centenas de corpos.",
+      "runtime": "wasm", "toolchain": "em++ -O3 -std=c++20",
+      "status": "planned", "tags": ["física", "simulação", "tempo real"]
+    },
+    {
+      "id": "cpp-imgui",
+      "lang": "C++", "langId": "cpp", "kind": "framework", "framework": "Dear ImGui",
+      "title": "Painel de análise com Dear ImGui",
+      "pitch": "Interface de modo imediato sobre WebGL: gráficos ao vivo, tabelas ordenáveis, janelas arrastáveis e inspetor de estado.",
+      "why": "Dear ImGui é o padrão de UI em engines e ferramentas gráficas. Rodando em WASM prova domínio do loop de render e do binding com WebGL.",
+      "runtime": "wasm", "toolchain": "em++ + ImGui SDL2/WebGL backend",
+      "status": "planned", "tags": ["UI", "WebGL", "ferramenta"]
+    },
+    {
+      "id": "rust-puro",
+      "lang": "Rust", "langId": "rust", "kind": "pure", "framework": null,
+      "title": "Interpretador de linguagem com REPL",
+      "pitch": "Linguagem de brinquedo completa: lexer, parser de descida recursiva, AST e máquina virtual. REPL aberto para o visitante escrever código.",
+      "why": "Rust brilha em software que não pode errar: enums exaustivos, pattern matching e Result tornam um interpretador quase à prova de bala. É o projeto que mostra o sistema de tipos trabalhando a seu favor.",
+      "runtime": "wasm", "toolchain": "wasm-pack + wasm-bindgen",
+      "status": "planned", "tags": ["compiladores", "REPL", "parser"]
+    },
+    {
+      "id": "rust-axum",
+      "lang": "Rust", "langId": "rust", "kind": "framework", "framework": "Axum",
+      "title": "API de encurtador de links com Axum",
+      "pitch": "API REST com rotas tipadas, estado compartilhado, rate limiting e métricas — servindo redirecionamentos reais.",
+      "why": "Axum é o framework web Rust mais adotado hoje, construído sobre Tokio e Tower. Mostra async/await, extractors e middleware em código de produção.",
+      "runtime": "container", "toolchain": "cargo + Docker distroless",
+      "status": "planned", "tags": ["API", "async", "Tokio"]
+    },
+    {
+      "id": "go-puro",
+      "lang": "Go", "langId": "go", "kind": "pure", "framework": null,
+      "title": "Simulador visual de concorrência",
+      "pitch": "Pool de workers com goroutines e channels desenhado na tela: tarefas entrando na fila, workers pegando trabalho, deadlock e backpressure acontecendo ao vivo.",
+      "why": "Concorrência é a razão de existir do Go. Em vez de explicar channels num texto, o visitante mexe nos parâmetros e vê o escalonador reagindo.",
+      "runtime": "wasm", "toolchain": "GOOS=js GOARCH=wasm",
+      "status": "planned", "tags": ["concorrência", "goroutines", "visualização"]
+    },
+    {
+      "id": "go-gin",
+      "lang": "Go", "langId": "go", "kind": "framework", "framework": "Gin",
+      "title": "API de catálogo com Gin",
+      "pitch": "CRUD com validação, middleware de log estruturado, health check e documentação OpenAPI gerada.",
+      "why": "Gin é o framework HTTP mais usado em Go. Binário único num container scratch — mostra por que Go domina infraestrutura.",
+      "runtime": "container", "toolchain": "go build + Docker scratch",
+      "status": "planned", "tags": ["API", "OpenAPI", "container mínimo"]
+    },
+    {
+      "id": "zig-puro",
+      "lang": "Zig", "langId": "zig", "kind": "pure", "framework": null,
+      "title": "Compressor LZ77 implementado à mão",
+      "pitch": "Compacte e descompacte arquivos no navegador com algoritmo escrito do zero, mostrando janela deslizante, taxa de compressão e bytes economizados.",
+      "why": "Zig é alocação explícita e zero mágica escondida. Compressão é manipulação de buffer pura — o cenário onde a filosofia da linguagem aparece inteira.",
+      "runtime": "wasm", "toolchain": "zig build-lib -target wasm32-freestanding",
+      "status": "planned", "tags": ["algoritmo", "compressão", "alocador explícito"]
+    },
+    {
+      "id": "wat-puro",
+      "lang": "WebAssembly (WAT)", "langId": "wat", "kind": "pure", "framework": null,
+      "title": "Mandelbrot escrito em WebAssembly Text",
+      "pitch": "Fractal com zoom profundo, calculado por WASM escrito à mão em formato texto — sem nenhuma linguagem de origem.",
+      "why": "WAT é o assembly da web. Escrever o fractal direto em instruções de pilha mostra entendimento do que toda linguagem desta página vira no final.",
+      "runtime": "wasm", "toolchain": "wat2wasm (wabt)",
+      "status": "planned", "tags": ["assembly", "fractal", "baixo nível"]
+    },
+    {
+      "id": "asm-puro",
+      "lang": "Assembly x86-64", "langId": "asm", "kind": "pure", "framework": null,
+      "title": "Rotinas x86-64 com SIMD",
+      "pitch": "Soma de vetores e busca em memória escritas em NASM, comparadas com a versão em C — medição de ciclos lado a lado.",
+      "why": "Não roda no navegador; roda gravado num terminal real mostrando o desassemblado e o ganho do SIMD. É o piso de toda a pilha.",
+      "runtime": "cast", "toolchain": "NASM + perf",
+      "status": "planned", "tags": ["SIMD", "otimização", "terminal"]
+    },
+    {
+      "id": "fortran-puro",
+      "lang": "Fortran", "langId": "fortran", "kind": "pure", "framework": null,
+      "title": "Simulação de N-corpos gravitacional",
+      "pitch": "Sistema estelar simulado com integrador de Verlet, desenhado em canvas — mude massas e velocidades e veja órbitas nascerem ou colapsarem.",
+      "why": "Fortran move supercomputador até hoje porque é imbatível em array numérico. N-corpos é exatamente o cálculo que mantém a linguagem viva desde 1957.",
+      "runtime": "wasm", "toolchain": "LFortran → wasm",
+      "status": "planned", "tags": ["HPC", "física", "numérico"]
+    },
+    {
+      "id": "cobol-puro",
+      "lang": "COBOL", "langId": "cobol", "kind": "pure", "framework": null,
+      "title": "Processamento de lote bancário",
+      "pitch": "Arquivo de movimentação com registros de largura fixa processado em lote: validação, totalização por agência e relatório impresso — do jeito que roda em banco até hoje.",
+      "why": "COBOL ainda processa a maior parte das transações financeiras do mundo. Rodar um batch de verdade mostra que eu entendo o sistema que o cliente tem, não só o que eu gostaria que ele tivesse.",
+      "runtime": "terminal", "toolchain": "GnuCOBOL compilado para WASM",
+      "status": "planned", "tags": ["mainframe", "financeiro", "legado vivo"]
+    },
+    {
+      "id": "ada-puro",
+      "lang": "Ada", "langId": "ada", "kind": "pure", "framework": null,
+      "title": "Controlador de sinal ferroviário com contratos",
+      "pitch": "Máquina de estados de bloqueio ferroviário com pré-condições, pós-condições e invariantes verificados — provando que dois trens não ocupam o mesmo trecho.",
+      "why": "Ada existe porque falha custa vida. Contratos e tipos com faixa restrita transformam regra de segurança em erro de compilação.",
+      "runtime": "cast", "toolchain": "GNAT + SPARK",
+      "status": "planned", "tags": ["segurança crítica", "contratos", "prova formal"]
+    },
+    {
+      "id": "nim-puro",
+      "lang": "Nim", "langId": "nim", "kind": "pure", "framework": null,
+      "title": "Gerador de labirinto e resolvedor A*",
+      "pitch": "Labirintos gerados por Prim e resolvidos por A* com animação passo a passo da fronteira de busca.",
+      "why": "Nim tem sintaxe de Python e velocidade de C, compilando via C. Um algoritmo de busca mostra as duas coisas ao mesmo tempo.",
+      "runtime": "wasm", "toolchain": "nim c -d:emscripten",
+      "status": "planned", "tags": ["algoritmo", "busca", "animação"]
+    },
+    {
+      "id": "crystal-puro",
+      "lang": "Crystal", "langId": "crystal", "kind": "pure", "framework": null,
+      "title": "Analisador de log com inferência de tipos",
+      "pitch": "Parser de log que detecta o formato sozinho, extrai campos e gera estatísticas — sintaxe de Ruby, velocidade de binário compilado.",
+      "why": "Crystal é a resposta à pergunta 'e se Ruby fosse compilado?'. Processar log é onde a diferença de velocidade fica óbvia.",
+      "runtime": "container", "toolchain": "crystal build --release",
+      "status": "planned", "tags": ["parser", "estatística", "Ruby-like"]
+    },
+    {
+      "id": "d-puro",
+      "lang": "D", "langId": "d", "kind": "pure", "framework": null,
+      "title": "Planilha com avaliação em tempo de compilação",
+      "pitch": "Motor de planilha com fórmulas, referências e detecção de dependência circular — usando CTFE para resolver parte das expressões antes de rodar.",
+      "why": "A execução em tempo de compilação do D é recurso que quase nenhuma outra linguagem tem. Uma planilha é o caso onde isso deixa de ser curiosidade.",
+      "runtime": "container", "toolchain": "ldc2 -O3",
+      "status": "planned", "tags": ["CTFE", "metaprogramação", "planilha"]
+    },
+    {
+      "id": "odin-puro",
+      "lang": "Odin", "langId": "odin", "kind": "pure", "framework": null,
+      "title": "Renderizador de software 3D",
+      "pitch": "Malha 3D rasterizada na CPU: projeção, z-buffer e sombreamento plano, sem GPU nenhuma.",
+      "why": "Odin foi desenhado para gráficos e jogos, com tipos vetoriais nativos e alocadores explícitos. Rasterizar à mão é o exercício que a linguagem foi feita para tornar agradável.",
+      "runtime": "wasm", "toolchain": "odin build -target:js_wasm32",
+      "status": "planned", "tags": ["3D", "rasterização", "gamedev"]
+    },
+    {
+      "id": "v-puro",
+      "lang": "V", "langId": "v", "kind": "pure", "framework": null,
+      "title": "Diff estrutural de JSON",
+      "pitch": "Cole dois JSONs e veja a diferença estrutural — não textual: chave adicionada, tipo alterado, array reordenado.",
+      "why": "V compila rápido e proíbe variável não usada e mutação implícita. Um utilitário pequeno e correto é o formato que a linguagem premia.",
+      "runtime": "container", "toolchain": "v -prod",
+      "status": "planned", "tags": ["utilitário", "JSON", "diff"]
+    },
+    {
+      "id": "pascal-puro",
+      "lang": "Object Pascal (Delphi/Lazarus)", "langId": "pascal", "kind": "pure", "framework": null,
+      "title": "Frente de caixa (PDV) offline",
+      "pitch": "Aplicação desktop clássica de PDV: cadastro, venda, cálculo de imposto e impressão — o formato de ERP que ainda roda em milhares de lojas brasileiras.",
+      "why": "Delphi sustenta uma fatia enorme do software comercial do Brasil. Saber ler e manter isso é diferencial real em cliente que tem sistema legado.",
+      "runtime": "cast", "toolchain": "Lazarus / Free Pascal",
+      "status": "planned", "tags": ["desktop", "ERP", "Brasil"]
+    }
+  ]
+}

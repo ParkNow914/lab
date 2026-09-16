@@ -1,0 +1,268 @@
+{
+  "grupo": "Aplicação, web e mobile",
+  "ordem": 2,
+  "descricao": "As linguagens que sustentam produto em produção. Aqui o projeto puro mostra a linguagem sem muleta, e o projeto com framework mostra como ela realmente é usada no mercado.",
+  "projetos": [
+    {
+      "id": "js-puro",
+      "lang": "JavaScript", "langId": "js", "kind": "pure", "framework": null,
+      "title": "Motor reativo em 200 linhas",
+      "pitch": "Sistema de reatividade com Proxy e rastreamento de dependência: mude um objeto e a interface se atualiza sozinha — sem React, sem framework, sem build.",
+      "why": "Todo mundo usa React sem saber o que ele faz. Reimplementar o núcleo reativo em JavaScript puro mostra que eu entendo a camada abaixo da ferramenta.",
+      "runtime": "static", "toolchain": "ES modules nativos",
+      "status": "planned", "tags": ["reatividade", "Proxy", "sem build"]
+    },
+    {
+      "id": "js-react",
+      "lang": "JavaScript", "langId": "js", "kind": "framework", "framework": "React",
+      "title": "Editor de fluxo com canvas infinito",
+      "pitch": "Editor de nós arrastáveis com conexões, zoom, pan, desfazer/refazer e execução do grafo — no estilo n8n.",
+      "why": "React é o padrão de mercado. Um editor de grafo é o tipo de interface complexa onde estado, memoização e renderização precisam ser bem resolvidos.",
+      "runtime": "static", "toolchain": "Vite + React 19",
+      "status": "planned", "tags": ["canvas", "grafo", "estado complexo"]
+    },
+    {
+      "id": "ts-puro",
+      "lang": "TypeScript", "langId": "ts", "kind": "pure", "framework": null,
+      "title": "Validador de esquema com tipos derivados",
+      "pitch": "Biblioteca de validação em runtime que infere o tipo estático a partir do esquema — no estilo do Zod, construída do zero, com playground de tipos ao vivo.",
+      "why": "O sistema de tipos do TypeScript é uma linguagem própria. Tipos condicionais, inferência e template literal types resolvidos à mão mostram domínio real, não uso casual.",
+      "runtime": "static", "toolchain": "tsc + type-level tests",
+      "status": "planned", "tags": ["tipos avançados", "validação", "inferência"]
+    },
+    {
+      "id": "ts-nextjs",
+      "lang": "TypeScript", "langId": "ts", "kind": "framework", "framework": "Next.js",
+      "title": "Painel com Server Components e streaming",
+      "pitch": "Dashboard com React Server Components, streaming de dados, Server Actions e cache por camada — medindo o tempo de cada etapa na tela.",
+      "why": "Next.js é onde eu trabalho todo dia. Server Components é a parte que quase ninguém usa direito, então é onde dá para mostrar diferença.",
+      "runtime": "container", "toolchain": "Next.js 16 + Vercel",
+      "status": "planned", "tags": ["RSC", "streaming", "cache"]
+    },
+    {
+      "id": "python-puro",
+      "lang": "Python", "langId": "python", "kind": "pure", "framework": null,
+      "title": "Resolvedor de Sudoku com backtracking",
+      "pitch": "Gera e resolve tabuleiros com propagação de restrições, mostrando a árvore de decisão e cada retrocesso em tempo real.",
+      "why": "Python é a linguagem de pensar em voz alta. Backtracking com geradores e recursão fica quase idêntico ao pseudocódigo — e roda no navegador via Pyodide.",
+      "runtime": "wasm", "toolchain": "Pyodide",
+      "status": "planned", "tags": ["algoritmo", "backtracking", "Pyodide"]
+    },
+    {
+      "id": "python-django",
+      "lang": "Python", "langId": "python", "kind": "framework", "framework": "Django",
+      "title": "Sistema de reservas com admin gerado",
+      "pitch": "Reserva de salas com regra de conflito de horário, permissões por grupo, migrações versionadas e o Django Admin funcionando de verdade.",
+      "why": "Django é 'baterias incluídas' levado a sério: ORM, admin, auth e migrations prontos. O admin gerado é o argumento de venda que nenhum outro framework tem.",
+      "runtime": "container", "toolchain": "Django 5 + Postgres",
+      "status": "planned", "tags": ["ORM", "admin", "auth"]
+    },
+    {
+      "id": "python-fastapi",
+      "lang": "Python", "langId": "python", "kind": "framework", "framework": "FastAPI",
+      "title": "API de RAG com busca vetorial",
+      "pitch": "Suba um documento, faça pergunta e receba resposta com a fonte citada — embeddings, busca por similaridade e streaming de tokens.",
+      "why": "É exatamente o que eu construo para cliente. FastAPI com Pydantic e async é a combinação padrão de backend de IA hoje.",
+      "runtime": "container", "toolchain": "FastAPI + pgvector",
+      "status": "planned", "tags": ["IA", "RAG", "streaming"]
+    },
+    {
+      "id": "java-puro",
+      "lang": "Java", "langId": "java", "kind": "pure", "framework": null,
+      "title": "Visualizador de estruturas de dados",
+      "pitch": "Árvore AVL, heap e tabela hash se reorganizando passo a passo conforme você insere e remove elementos.",
+      "why": "Java é a linguagem em que meio mundo aprendeu estrutura de dados. Mostrar rotação de AVL acontecendo é mais honesto que mais um CRUD.",
+      "runtime": "wasm", "toolchain": "TeaVM → WASM",
+      "status": "planned", "tags": ["estruturas de dados", "visualização", "TeaVM"]
+    },
+    {
+      "id": "java-spring",
+      "lang": "Java", "langId": "java", "kind": "framework", "framework": "Spring Boot",
+      "title": "Serviço de pedidos com arquitetura hexagonal",
+      "pitch": "API com portas e adaptadores, injeção de dependência, transação, cache e Actuator expondo métricas reais.",
+      "why": "Spring Boot é o padrão corporativo mundial. Arquitetura hexagonal mostra que eu sei separar domínio de infraestrutura, não só anotar classe.",
+      "runtime": "container", "toolchain": "Spring Boot 3 + GraalVM native",
+      "status": "planned", "tags": ["enterprise", "hexagonal", "DI"]
+    },
+    {
+      "id": "csharp-puro",
+      "lang": "C#", "langId": "csharp", "kind": "pure", "framework": null,
+      "title": "Avaliador de expressões com LINQ",
+      "pitch": "Parser e calculadora de expressões matemáticas com variáveis e funções, usando árvores de expressão compiladas em tempo de execução.",
+      "why": "Expression trees são um recurso de C# que quase ninguém explora. Compilar uma fórmula digitada em delegate nativo é o truque que mostra a profundidade da linguagem.",
+      "runtime": "wasm", "toolchain": ".NET WASM (wasm-experimental)",
+      "status": "planned", "tags": ["LINQ", "expression trees", "parser"]
+    },
+    {
+      "id": "csharp-blazor",
+      "lang": "C#", "langId": "csharp", "kind": "framework", "framework": "Blazor WebAssembly",
+      "title": "Kanban offline-first com Blazor",
+      "pitch": "Quadro Kanban com arrastar e soltar, persistência local e sincronização — C# rodando inteiro no navegador, sem uma linha de JavaScript.",
+      "why": "Blazor WASM é a prova de que C# virou linguagem de front-end. Roda estático no GitHub Pages, sem servidor: grátis e sempre no ar.",
+      "runtime": "wasm", "toolchain": "Blazor WASM AOT",
+      "status": "planned", "tags": ["SPA", "offline", "sem JS"]
+    },
+    {
+      "id": "php-puro",
+      "lang": "PHP", "langId": "php", "kind": "pure", "framework": null,
+      "title": "Motor de template do zero",
+      "pitch": "Engine de template com herança de layout, seções, escape automático e compilação para PHP — o núcleo do Blade, explicado.",
+      "why": "PHP carrega fama de bagunça por causa de código dos anos 2000, não da linguagem atual. Um motor de template limpo em PHP 8 com tipos e enums desfaz isso.",
+      "runtime": "wasm", "toolchain": "php-wasm",
+      "status": "planned", "tags": ["template", "PHP 8", "compilação"]
+    },
+    {
+      "id": "php-laravel",
+      "lang": "PHP", "langId": "php", "kind": "framework", "framework": "Laravel",
+      "title": "Assinaturas com fila e webhook",
+      "pitch": "Cobrança recorrente com jobs em fila, tentativa com backoff, webhook idempotente e painel de eventos — o fluxo que mais quebra em SaaS real.",
+      "why": "Laravel é o framework mais contratado do mercado brasileiro. Fila e webhook idempotente são a parte que separa projeto de faculdade de sistema que cobra dinheiro de verdade.",
+      "runtime": "container", "toolchain": "Laravel 12 + Horizon",
+      "status": "planned", "tags": ["fila", "webhook", "pagamento"]
+    },
+    {
+      "id": "ruby-puro",
+      "lang": "Ruby", "langId": "ruby", "kind": "pure", "framework": null,
+      "title": "DSL de regra de negócio",
+      "pitch": "Linguagem interna onde a regra é escrita quase em português — `regra :desconto do aplicar 10.percent quando cliente.vip? end` — construída com metaprogramação.",
+      "why": "Ruby é a melhor linguagem do mundo para criar DSL. Isso é o que torna o Rails possível, e quase nenhum portfólio mostra a mecânica por trás.",
+      "runtime": "wasm", "toolchain": "ruby.wasm",
+      "status": "planned", "tags": ["DSL", "metaprogramação", "blocos"]
+    },
+    {
+      "id": "ruby-rails",
+      "lang": "Ruby", "langId": "ruby", "kind": "framework", "framework": "Ruby on Rails",
+      "title": "Fórum em tempo real com Hotwire",
+      "pitch": "Discussões com atualização ao vivo via Turbo Streams — sem escrever JavaScript, sem SPA, com HTML chegando pelo websocket.",
+      "why": "Hotwire é a aposta do Rails contra a complexidade do front-end moderno. Mostrar tempo real sem SPA é um argumento técnico forte.",
+      "runtime": "container", "toolchain": "Rails 8 + Turbo",
+      "status": "planned", "tags": ["tempo real", "Hotwire", "sem SPA"]
+    },
+    {
+      "id": "kotlin-puro",
+      "lang": "Kotlin", "langId": "kotlin", "kind": "pure", "framework": null,
+      "title": "Máquina de estados com corrotinas",
+      "pitch": "Fluxo de checkout modelado como máquina de estados selada, com corrotinas e Flow controlando transições assíncronas e cancelamento.",
+      "why": "Sealed class mais `when` exaustivo é o que torna estado impossível de representar errado. Corrotina estruturada resolve cancelamento que em outras linguagens vira vazamento.",
+      "runtime": "js", "toolchain": "Kotlin/JS (IR)",
+      "status": "planned", "tags": ["corrotinas", "sealed class", "estado"]
+    },
+    {
+      "id": "kotlin-compose",
+      "lang": "Kotlin", "langId": "kotlin", "kind": "framework", "framework": "Compose Multiplatform",
+      "title": "App de finanças em Compose Multiplatform",
+      "pitch": "Mesma base de código rodando como app Android e como site: lançamentos, gráficos e categorias.",
+      "why": "Compose Multiplatform é a aposta do Kotlin contra o Flutter. Mostrar o mesmo código em duas plataformas é o argumento inteiro da tecnologia.",
+      "runtime": "wasm", "toolchain": "Compose Multiplatform (Wasm target)",
+      "status": "planned", "tags": ["multiplataforma", "Android", "UI declarativa"]
+    },
+    {
+      "id": "swift-puro",
+      "lang": "Swift", "langId": "swift", "kind": "pure", "framework": null,
+      "title": "Parser combinador com tipos opacos",
+      "pitch": "Parser de CSV e de expressões construído por combinação de parsers pequenos, usando protocolos com tipos associados e `some`.",
+      "why": "Swift tem um sistema de tipos muito mais rico do que 'linguagem de app iOS' sugere. Parser combinator explora protocolo, genérico e result builder.",
+      "runtime": "wasm", "toolchain": "SwiftWasm",
+      "status": "planned", "tags": ["parser", "protocolos", "genéricos"]
+    },
+    {
+      "id": "swift-swiftui",
+      "lang": "Swift", "langId": "swift", "kind": "framework", "framework": "SwiftUI",
+      "title": "App de hábitos em SwiftUI",
+      "pitch": "Acompanhamento de hábitos com animação, gráfico de sequência, widget e persistência em SwiftData.",
+      "why": "SwiftUI é o presente e o futuro do desenvolvimento Apple. Como não roda no navegador, entra como gravação de tela do simulador rodando de verdade.",
+      "runtime": "cast", "toolchain": "Xcode + SwiftData",
+      "status": "planned", "tags": ["iOS", "declarativo", "SwiftData"]
+    },
+    {
+      "id": "dart-puro",
+      "lang": "Dart", "langId": "dart", "kind": "pure", "framework": null,
+      "title": "Motor de partículas com isolates",
+      "pitch": "Dezenas de milhares de partículas simuladas fora da thread principal, mantendo a interface fluida.",
+      "why": "Isolates são o modelo de concorrência do Dart — memória isolada e troca por mensagem, diferente de thread compartilhada. Partícula em massa deixa a diferença visível.",
+      "runtime": "js", "toolchain": "dart compile js",
+      "status": "planned", "tags": ["isolates", "partículas", "concorrência"]
+    },
+    {
+      "id": "dart-flutter",
+      "lang": "Dart", "langId": "dart", "kind": "framework", "framework": "Flutter",
+      "title": "App de delivery em Flutter Web",
+      "pitch": "Catálogo, carrinho, checkout e acompanhamento de pedido — o mesmo código que vira app Android e iOS, rodando aqui no navegador.",
+      "why": "Flutter compila para web de graça, então o app inteiro fica clicável no portfólio sem emulador nenhum. É o melhor custo-benefício de demonstração mobile.",
+      "runtime": "wasm", "toolchain": "flutter build web --wasm",
+      "status": "planned", "tags": ["mobile", "multiplataforma", "e-commerce"]
+    },
+    {
+      "id": "elixir-puro",
+      "lang": "Elixir", "langId": "elixir", "kind": "pure", "framework": null,
+      "title": "Árvore de supervisão OTP tolerante a falha",
+      "pitch": "Processos que você pode matar de propósito pelo botão, e o supervisor reiniciando cada um conforme a estratégia escolhida.",
+      "why": "'Deixe quebrar' só convence quando você vê quebrar e voltar. OTP é o modelo de confiabilidade mais maduro que existe e quase ninguém demonstra na prática.",
+      "runtime": "container", "toolchain": "Elixir + OTP",
+      "status": "planned", "tags": ["OTP", "tolerância a falha", "atores"]
+    },
+    {
+      "id": "elixir-phoenix",
+      "lang": "Elixir", "langId": "elixir", "kind": "framework", "framework": "Phoenix LiveView",
+      "title": "Sala colaborativa com LiveView",
+      "pitch": "Vários visitantes no mesmo quadro ao vivo: cursor, presença e edição simultânea, com zero JavaScript escrito.",
+      "why": "LiveView entrega tempo real com HTML pelo websocket. Uma sala colaborativa aberta para qualquer visitante é a demonstração mais difícil de fingir.",
+      "runtime": "container", "toolchain": "Phoenix + LiveView",
+      "status": "planned", "tags": ["tempo real", "colaborativo", "presença"]
+    },
+    {
+      "id": "erlang-puro",
+      "lang": "Erlang", "langId": "erlang", "kind": "pure", "framework": null,
+      "title": "Troca a quente de código em execução",
+      "pitch": "Um servidor no ar tem a lógica substituída sem derrubar conexão nem perder estado — atualização com o sistema rodando.",
+      "why": "Hot code swapping é o recurso lendário do Erlang que sustentou centrais telefônicas com nove noves de disponibilidade. Vale mostrar acontecendo.",
+      "runtime": "cast", "toolchain": "Erlang/OTP + rebar3",
+      "status": "planned", "tags": ["hot swap", "telecom", "disponibilidade"]
+    },
+    {
+      "id": "scala-puro",
+      "lang": "Scala", "langId": "scala", "kind": "pure", "framework": null,
+      "title": "Pipeline de dados com efeitos tipados",
+      "pitch": "Transformação de dados em que erro, concorrência e recurso aparecem no tipo — e o pipeline se recompõe sozinho após falha.",
+      "why": "Scala é onde programação funcional encontra a JVM corporativa. Efeito tipado é o conceito que Kotlin e Java ainda não têm resposta boa.",
+      "runtime": "js", "toolchain": "Scala.js + Cats Effect",
+      "status": "planned", "tags": ["funcional", "efeitos", "tipos"]
+    },
+    {
+      "id": "clojure-puro",
+      "lang": "Clojure", "langId": "clojure", "kind": "pure", "framework": null,
+      "title": "Banco de dados imutável com viagem no tempo",
+      "pitch": "Cada alteração cria uma nova versão do banco; arraste a linha do tempo e veja o estado exato em qualquer instante passado.",
+      "why": "Estrutura de dados persistente é o coração do Clojure — e a razão de o Datomic existir. Viagem no tempo é consequência natural da imutabilidade.",
+      "runtime": "js", "toolchain": "ClojureScript",
+      "status": "planned", "tags": ["imutabilidade", "Lisp", "time travel"]
+    },
+    {
+      "id": "perl-puro",
+      "lang": "Perl", "langId": "perl", "kind": "pure", "framework": null,
+      "title": "Faxina de dados sujos com regex",
+      "pitch": "Arquivo de texto caótico — telefone, CPF, data e endereço em dez formatos diferentes — normalizado numa passada só.",
+      "why": "Perl foi feita para isso e continua imbatível. É a linguagem que sustentou a web dos anos 90 e ainda vive em script de sysadmin.",
+      "runtime": "wasm", "toolchain": "WebPerl",
+      "status": "planned", "tags": ["regex", "ETL", "texto"]
+    },
+    {
+      "id": "objc-puro",
+      "lang": "Objective-C", "langId": "objc", "kind": "pure", "framework": null,
+      "title": "Troca de método em tempo de execução",
+      "pitch": "Method swizzling instrumentando uma classe em execução: log automático de chamada sem tocar no código original.",
+      "why": "O runtime dinâmico do Objective-C permite reescrever comportamento com o app rodando. É o poder — e o perigo — que o Swift trocou por segurança.",
+      "runtime": "cast", "toolchain": "clang + GNUstep",
+      "status": "planned", "tags": ["runtime dinâmico", "swizzling", "legado Apple"]
+    },
+    {
+      "id": "groovy-puro",
+      "lang": "Groovy", "langId": "groovy", "kind": "pure", "framework": null,
+      "title": "DSL de pipeline de build",
+      "pitch": "Mini linguagem de automação de build, no estilo do Gradle: tarefas, dependências entre elas e execução em ordem topológica.",
+      "why": "Groovy é a linguagem por trás do Gradle e do Jenkins. Uma DSL de build é literalmente o caso de uso que a tornou onipresente.",
+      "runtime": "container", "toolchain": "Groovy + JVM",
+      "status": "planned", "tags": ["DSL", "build", "JVM"]
+    }
+  ]
+}

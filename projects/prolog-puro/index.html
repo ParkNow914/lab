@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resolvedor de enigma lógico em Prolog — Laboratório Autark</title>
+<meta name="description" content="O enigma das cinco casas resolvido em Prolog: você declara as regras, não o algoritmo, e o motor encontra a única solução possível.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  textarea#programa { min-height: 430px; font-size: .78rem; line-height: 1.55; }
+
+  table.casas { width: 100%; border-collapse: collapse; font-size: .8rem; margin-top: 4px; }
+  table.casas th, table.casas td { text-align: left; padding: 8px 9px; border-bottom: 1px solid var(--border); }
+  table.casas th { font-family: var(--font-mono); font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; color: var(--text-dim); font-weight: 500; }
+  table.casas td { font-family: var(--font-mono); color: var(--text-muted); }
+  table.casas td.pos { color: var(--text-dim); }
+  table.casas tr:last-child td { border-bottom: none; }
+  table.casas .achou { color: var(--accent); font-weight: 600; }
+
+  .resposta {
+    background: var(--accent-soft); border: 1px solid rgba(52,211,153,.25);
+    border-radius: 12px; padding: 16px 18px; margin-bottom: 16px;
+  }
+  .resposta .l { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+  .resposta .v { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; margin-top: 6px; line-height: 1.45; }
+  .resposta .v b { color: var(--accent); }
+
+  .tempo { font-family: var(--font-mono); font-size: .74rem; color: var(--text-dim); margin-top: 10px; }
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .erro-box { color: var(--rose); font-family: var(--font-mono); font-size: .78rem; white-space: pre-wrap; }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">Prolog</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/prolog-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Você escreve as regras. Ele acha a resposta.</h1>
+  <p class="pitch">
+    O enigma das cinco casas — quinze pistas, uma solução possível. Repare no programa ao lado:
+    <strong>não existe algoritmo ali</strong>. Não há laço, não há busca, não há ordem de execução.
+    Só os fatos do enunciado, traduzidos quase palavra por palavra. Quem procura a resposta é a
+    própria linguagem.
+  </p>
+
+  <div class="meta">
+    <span>Prolog puro</span>
+    <span>Tau-Prolog (interpretador em JS)</span>
+    <span>programação lógica</span>
+    <span>unificação + backtracking</span>
+    <span>roda no navegador</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    Programação lógica inverte tudo: descreve-se o problema, não o passo a passo. É a
+    demonstração mais clara de que existe paradigma além de imperativo e funcional — e o
+    enigma das cinco casas é exatamente o tipo de problema onde escrever o algoritmo à mão
+    seria trabalhoso e escrever as regras é quase transcrição.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+    <div class="duas">
+
+      <section class="painel">
+        <h2>O programa <span class="hint">pode editar</span></h2>
+        <p class="dica">
+          Mude uma pista e resolva de novo: o enigma pode passar a ter <b>outra</b> solução,
+          <b>várias</b> ou <b>nenhuma</b> — e você não precisa reescrever nada além da regra.
+        </p>
+        <label for="programa">Regras (Prolog)</label>
+        <textarea id="programa" spellcheck="false" aria-label="Programa Prolog"></textarea>
+      </section>
+
+      <section class="painel">
+        <h2>A resposta</h2>
+
+        <div class="linha" style="margin-bottom:14px">
+          <div style="flex:1 1 240px">
+            <label for="consulta">Pergunta</label>
+            <input type="text" id="consulta" value="resolver(Zebra, Agua)." spellcheck="false">
+          </div>
+          <button class="pri" id="rodar">Resolver</button>
+          <button id="restaurar">Restaurar</button>
+        </div>
+
+        <div id="saida">
+          <div class="carregando" id="boot">Carregando o interpretador Prolog…</div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/prolog-puro">Ver o código</a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tau-prolog@0.3.4/modules/core.js"></script>
+<script>
+// O enigma inteiro. `membro/2` e `adjacente/3` sao definidos aqui de proposito:
+// sem eles a demo dependeria do modulo de listas, e a graca e mostrar que o
+// programa todo cabe nesta tela.
+const PROGRAMA = `% ---- Enigma das cinco casas -------------------------------
+% casa(Cor, Nacionalidade, Animal, Bebida, Cigarro)
+
+membro(X, [X|_]).
+membro(X, [_|T]) :- membro(X, T).
+
+adjacente(X, Y, [X,Y|_]).
+adjacente(X, Y, [_|T]) :- adjacente(X, Y, T).
+
+direita(X, Y, L) :- adjacente(Y, X, L).
+vizinho(X, Y, L) :- adjacente(X, Y, L).
+vizinho(X, Y, L) :- adjacente(Y, X, L).
+
+casas(Casas) :-
+    % 5 casas; a norueguesa e a primeira; o leite e bebido na do meio
+    Casas = [casa(_, noruegues, _, _, _), _, casa(_, _, _, leite, _), _, _],
+
+    membro(casa(vermelha, ingles,   _, _, _), Casas),   % o ingles mora na vermelha
+    membro(casa(_, espanhol, cachorro, _, _), Casas),   % o espanhol tem cachorro
+    membro(casa(verde, _, _, cafe, _), Casas),          % na verde se bebe cafe
+    membro(casa(_, ucraniano, _, cha, _), Casas),       % o ucraniano bebe cha
+    direita(casa(verde, _,_,_,_),
+            casa(marfim, _,_,_,_), Casas),              % a verde fica a direita da marfim
+    membro(casa(_, _, caracol, _, old_gold), Casas),    % quem fuma Old Gold tem caracol
+    membro(casa(amarela, _, _, _, kools), Casas),       % na amarela se fuma Kools
+    vizinho(casa(_,_,_,_, chesterfield),
+            casa(_,_, raposa, _,_), Casas),             % Chesterfield vizinho da raposa
+    vizinho(casa(_,_,_,_, kools),
+            casa(_,_, cavalo, _,_), Casas),             % Kools vizinho do cavalo
+    membro(casa(_, _, _, suco, lucky_strike), Casas),   % quem fuma Lucky Strike bebe suco
+    membro(casa(_, japones, _, _, parliament), Casas),  % o japones fuma Parliament
+    vizinho(casa(azul, _,_,_,_),
+            casa(_, noruegues, _,_,_), Casas),          % o noruegues e vizinho da azul
+
+    membro(casa(_, _, zebra, _, _), Casas),             % alguem tem uma zebra
+    membro(casa(_, _, _, agua, _), Casas).              % alguem bebe agua
+
+resolver(Zebra, Agua) :-
+    casas(Casas),
+    membro(casa(_, Zebra, zebra, _, _), Casas),
+    membro(casa(_, Agua,  _, agua, _), Casas).
+`;
+
+const $ = (id) => document.getElementById(id);
+const saida = $("saida");
+
+$("programa").value = PROGRAMA;
+
+const BONITO = {
+  noruegues: "norueguês", ingles: "inglês", espanhol: "espanhol",
+  ucraniano: "ucraniano", japones: "japonês",
+  vermelha: "vermelha", verde: "verde", marfim: "marfim", amarela: "amarela", azul: "azul",
+  cachorro: "cachorro", caracol: "caracol", raposa: "raposa", cavalo: "cavalo", zebra: "zebra",
+  leite: "leite", cafe: "café", cha: "chá", suco: "suco", agua: "água",
+  old_gold: "Old Gold", kools: "Kools", chesterfield: "Chesterfield",
+  lucky_strike: "Lucky Strike", parliament: "Parliament",
+};
+const bonito = (s) => BONITO[s] ?? s;
+
+// Tau-Prolog representa lista como './2' encadeado terminando no atomo '[]'.
+function listaParaArray(t) {
+  const out = [];
+  while (t && t.args && t.args.length === 2 && t.id === ".") {
+    out.push(t.args[0]);
+    t = t.args[1];
+  }
+  return out;
+}
+const nome = (t) => (t && t.id !== undefined ? String(t.id) : "?");
+
+function tabelaDeCasas(listaTerm, destaque) {
+  const casas = listaParaArray(listaTerm);
+  if (casas.length !== 5) return "";
+
+  const linhas = casas.map((c, i) => {
+    const [cor, nac, animal, bebida, cig] = (c.args || []).map(nome);
+    const marca = (v) => (destaque.includes(v) ? `<span class="achou">${bonito(v)}</span>` : bonito(v));
+    return `<tr>
+      <td class="pos">${i + 1}ª</td>
+      <td>${bonito(cor)}</td>
+      <td>${marca(nac)}</td>
+      <td>${marca(animal)}</td>
+      <td>${marca(bebida)}</td>
+      <td>${bonito(cig)}</td>
+    </tr>`;
+  }).join("");
+
+  return `<table class="casas">
+    <thead><tr><th>casa</th><th>cor</th><th>quem mora</th><th>animal</th><th>bebida</th><th>cigarro</th></tr></thead>
+    <tbody>${linhas}</tbody>
+  </table>`;
+}
+
+function resolver() {
+  const sessao = pl.create(3_000_000); // teto de passos: evita travar a aba num programa editado errado
+  const programa = $("programa").value;
+  const consulta = $("consulta").value.trim();
+  const inicio = performance.now();
+
+  saida.innerHTML = `<div class="carregando">Procurando…</div>`;
+
+  const falhar = (msg, detalhe) => {
+    saida.innerHTML = `<p style="color:var(--amber);font-weight:600;margin:0 0 6px">${msg}</p>` +
+      (detalhe ? `<pre class="saida erro-box">${detalhe}</pre>` : "");
+  };
+
+  sessao.consult(programa, {
+    success() {
+      sessao.query(consulta, {
+        success() {
+          sessao.answer({
+            success(resposta) {
+              const ms = performance.now() - inicio;
+
+              // Os valores ligados as variaveis da pergunta.
+              const ligacoes = Object.entries(resposta.links || {})
+                .filter(([k]) => !k.startsWith("_"))
+                .map(([k, v]) => [k, nome(v)]);
+
+              const destaque = ligacoes.map(([, v]) => v);
+
+              const frase = ligacoes.length
+                ? ligacoes.map(([k, v]) => `<b>${bonito(v)}</b> &rarr; ${k}`).join(" · ")
+                : "sim (a consulta é verdadeira)";
+
+              // Segunda consulta so para desenhar a tabela completa.
+              const s2 = pl.create(3_000_000);
+              s2.consult(programa, {
+                success() {
+                  s2.query("casas(C).", {
+                    success() {
+                      s2.answer({
+                        success(r2) {
+                          saida.innerHTML =
+                            `<div class="resposta"><div class="l">resposta</div><div class="v">${frase}</div></div>` +
+                            tabelaDeCasas(r2.links.C, destaque) +
+                            `<div class="tempo">resolvido em ${ms.toFixed(0)} ms — sem nenhum laço escrito por mim</div>`;
+                        },
+                        fail() {
+                          saida.innerHTML =
+                            `<div class="resposta"><div class="l">resposta</div><div class="v">${frase}</div></div>` +
+                            `<div class="tempo">resolvido em ${ms.toFixed(0)} ms</div>`;
+                        },
+                        error: (e) => falhar("Erro ao montar a tabela", String(e)),
+                      });
+                    },
+                    error: () => {
+                      saida.innerHTML =
+                        `<div class="resposta"><div class="l">resposta</div><div class="v">${frase}</div></div>` +
+                        `<div class="tempo">resolvido em ${ms.toFixed(0)} ms</div>`;
+                    },
+                  });
+                },
+                error: () => {},
+              });
+            },
+            fail() {
+              falhar("Nenhuma solução satisfaz todas as regras.",
+                "Com as pistas como estão, não existe combinação possível de casas.");
+            },
+            error: (e) => falhar("Erro durante a busca", String(e)),
+            limit: 3_000_000,
+          });
+        },
+        error: (e) => falhar("A pergunta não é um termo Prolog válido", String(e)),
+      });
+    },
+    error: (e) => falhar("O programa não compilou", String(e)),
+  });
+}
+
+$("rodar").addEventListener("click", resolver);
+$("restaurar").addEventListener("click", () => {
+  $("programa").value = PROGRAMA;
+  $("consulta").value = "resolver(Zebra, Agua).";
+  resolver();
+});
+$("consulta").addEventListener("keydown", (e) => { if (e.key === "Enter") resolver(); });
+
+// Resolve sozinho ao abrir: visitante nao deveria precisar clicar para ver
+// que a coisa funciona.
+if (typeof pl === "undefined") {
+  $("boot").outerHTML = `<p style="color:var(--rose)">Não consegui carregar o interpretador Prolog. Recarregue a página.</p>`;
+} else {
+  resolver();
+}
+</script>
+</body>
+</html>

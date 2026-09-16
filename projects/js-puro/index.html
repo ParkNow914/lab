@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motor reativo em JavaScript puro — Laboratório Autark</title>
+<meta name="description" content="O núcleo de reatividade que existe dentro do Vue e do Solid, reescrito do zero em 200 linhas de JavaScript, sem build e sem dependência.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  .carrinho { list-style: none; padding: 0; margin: 0; }
+  .item {
+    display: flex; align-items: center; gap: 12px; padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .item:last-child { border-bottom: none; }
+  .item .nome { flex: 1; font-size: .92rem; }
+  .item .preco { font-family: var(--font-mono); font-size: .82rem; color: var(--text-dim); }
+  .qtd { display: flex; align-items: center; gap: 6px; }
+  .qtd button { padding: 3px 10px; font-size: .95rem; line-height: 1.2; }
+  .qtd .n { font-family: var(--font-mono); font-size: .88rem; min-width: 22px; text-align: center; }
+
+  .totais { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .tot-linha { display: flex; justify-content: space-between; font-size: .88rem; color: var(--text-muted); padding: 4px 0; }
+  .tot-linha.grande {
+    font-family: var(--font-display); font-size: 1.32rem; font-weight: 700;
+    color: var(--text); padding-top: 10px; letter-spacing: -.02em;
+  }
+  .tot-linha.grande .v { color: var(--accent); }
+  .tot-linha .v { font-family: var(--font-mono); }
+  .tot-linha.desconto .v { color: var(--amber); }
+
+  /* Pisca quando o valor e reescrito pelo efeito. E a prova visual de que
+     apenas o pedaco dependente foi recalculado. */
+  .flash { animation: flash .6s ease-out; }
+  @keyframes flash {
+    from { background: rgba(52,211,153,.28); box-shadow: 0 0 0 5px rgba(52,211,153,.12); border-radius: 4px; }
+    to   { background: transparent; box-shadow: none; }
+  }
+
+  .contador { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .kpi { flex: 1 1 110px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 13px; }
+  .kpi .n { font-family: var(--font-mono); font-size: 1.3rem; color: var(--accent); line-height: 1.2; }
+  .kpi .l { font-size: .7rem; color: var(--text-dim); }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 14px; }
+  .dica b { color: var(--accent); }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">JavaScript</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/js-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Motor reativo em 200 linhas</h1>
+  <p class="pitch">
+    Mexa no carrinho abaixo. Nenhum código de tela manda atualizar total, desconto ou frete —
+    eles se recalculam sozinhos porque <em>leram</em> os dados que mudaram. É o mesmo mecanismo
+    que existe dentro do Vue, do Solid e dos signals do Angular, aqui sem framework, sem build
+    e sem uma única dependência.
+  </p>
+
+  <div class="meta">
+    <span>JavaScript puro</span>
+    <span>Proxy + Reflect</span>
+    <span>ES modules nativos</span>
+    <span>0 dependências</span>
+    <span>sem etapa de build</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    Todo mundo usa React sem saber o que ele faz por baixo. Reimplementar o núcleo reativo
+    obriga a entender rastreamento de dependência, limpeza de dependência morta e agrupamento
+    de atualização — os três pontos onde framework de verdade ganha ou perde desempenho.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+    <div class="duas">
+
+      <section class="painel">
+        <h2>Carrinho <span class="hint">mexa aqui</span></h2>
+        <ul class="carrinho" id="carrinho"></ul>
+
+        <div class="totais">
+          <div class="tot-linha"><span>Subtotal</span><span class="v" id="subtotal">—</span></div>
+          <div class="tot-linha desconto"><span id="rotulo-desc">Desconto</span><span class="v" id="desconto">—</span></div>
+          <div class="tot-linha"><span id="rotulo-frete">Frete</span><span class="v" id="frete">—</span></div>
+          <div class="tot-linha grande"><span>Total</span><span class="v" id="total">—</span></div>
+        </div>
+
+        <div class="linha" style="margin-top:18px">
+          <button id="add">+ Adicionar item</button>
+          <button id="lote" class="pri">Alterar 4 itens de uma vez</button>
+        </div>
+        <p class="dica" style="margin-top:12px">
+          O botão de lote muda quatro quantidades ao mesmo tempo. Sem agrupamento, cada
+          escrita redesenharia a tela inteira; com ele, cada efeito roda <b>uma vez só</b>,
+          não uma vez por alteração.
+        </p>
+      </section>
+
+      <section class="painel">
+        <h2>O que o motor está fazendo <span class="hint">ao vivo</span></h2>
+
+        <div class="contador">
+          <div class="kpi"><div class="n" id="k-efeitos">0</div><div class="l">efeitos executados</div></div>
+          <div class="kpi"><div class="n" id="k-mudancas">0</div><div class="l">escritas detectadas</div></div>
+          <div class="kpi"><div class="n" id="k-deps">0</div><div class="l">dependências rastreadas</div></div>
+        </div>
+
+        <p class="dica">
+          Cada linha abaixo é uma operação real do motor. <b>rastreou</b> = uma leitura virou
+          dependência. <b>rodou</b> = um efeito foi reexecutado porque algo que ele lê mudou.
+        </p>
+
+        <ul class="log" id="log"></ul>
+        <div class="linha" style="margin-top:12px">
+          <button id="limpar-log">Limpar registro</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/js-puro">Ler o motor (reativo.js)</a>
+  </div>
+</div>
+
+<script type="module">
+import { reativo, efeito, computado, lote, observar } from "./reativo.js";
+
+const dinheiro = (n) =>
+  n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+// --- Estado ---------------------------------------------------------------
+
+const loja = reativo({
+  itens: [
+    { id: 1, nome: "Teclado mecânico 60%", preco: 349.9, qtd: 1 },
+    { id: 2, nome: "Monitor 27\" IPS", preco: 1299.0, qtd: 1 },
+    { id: 3, nome: "Cabo USB-C trançado", preco: 79.9, qtd: 2 },
+    { id: 4, nome: "Suporte de notebook", preco: 159.0, qtd: 1 },
+  ],
+  proximoId: 5,
+});
+
+// --- Valores derivados ----------------------------------------------------
+// Nenhum deles e chamado por ninguem: eles se recalculam porque leem `loja`.
+
+const subtotal = computado(
+  () => loja.itens.reduce((s, i) => s + i.preco * i.qtd, 0),
+  "subtotal",
+);
+
+// Regra de negocio comum: 10% acima de R$1.500. O efeito que mostra o desconto
+// depende do subtotal, e o subtotal depende de preco e qtd de cada item —
+// a cadeia inteira se reconstroi sozinha.
+const desconto = computado(
+  () => (subtotal.valor >= 1500 ? subtotal.valor * 0.1 : 0),
+  "desconto",
+);
+
+const frete = computado(
+  () => (subtotal.valor - desconto.valor >= 999 ? 0 : 39.9),
+  "frete",
+);
+
+const total = computado(
+  () => subtotal.valor - desconto.valor + frete.valor,
+  "total",
+);
+
+// --- Observador: transforma o funcionamento interno em coisa visivel -------
+
+const log = document.getElementById("log");
+let nEfeitos = 0, nMudancas = 0, nDeps = 0;
+let emLote = false, acumuladoNoLote = 0;
+
+const $ = (id) => document.getElementById(id);
+
+function escreverLog(classe, texto) {
+  const li = document.createElement("li");
+  li.className = classe;
+  const hora = new Date().toLocaleTimeString("pt-BR", { hour12: false });
+  li.innerHTML = `<span class="t">${hora}</span>${texto}`;
+  log.prepend(li);
+  // Registro sem teto viraria vazamento numa pagina que fica aberta.
+  while (log.children.length > 60) log.lastElementChild.remove();
+}
+
+observar((evento, dado) => {
+  if (evento === "rastreou") {
+    nDeps++;
+    $("k-deps").textContent = nDeps;
+    return; // rastreio e barulhento demais para o registro; fica so no contador
+  }
+
+  if (evento === "rodou") {
+    nEfeitos++;
+    $("k-efeitos").textContent = nEfeitos;
+    if (emLote) acumuladoNoLote++;
+    escreverLog("ok", `rodou <b>${dado.efeito}</b>`);
+  }
+
+  if (evento === "mudou") {
+    nMudancas++;
+    $("k-mudancas").textContent = nMudancas;
+    escreverLog("", `escreveu <b>${String(dado.chave)}</b>: ${fmt(dado.de)} → ${fmt(dado.para)}`);
+  }
+
+  if (evento === "lote") {
+    escreverLog("alerta", `lote fechado: <b>${dado.quantidade}</b> efeito(s) em vez de ${acumuladoNoLote || dado.quantidade * 4}`);
+  }
+});
+
+const fmt = (v) =>
+  typeof v === "object" && v !== null ? "…" : String(v);
+
+// --- Renderizacao ---------------------------------------------------------
+// Cada efeito cuida de um pedaco da tela. Nenhum deles sabe da existencia dos
+// outros, e nenhum e chamado explicitamente depois da criacao.
+
+function pisca(el) {
+  el.classList.remove("flash");
+  void el.offsetWidth; // forca reinicio da animacao
+  el.classList.add("flash");
+}
+
+function ligaValor(id, ler) {
+  let primeira = true;
+  efeito(() => {
+    const el = $(id);
+    el.textContent = ler();
+    if (!primeira) pisca(el);
+    primeira = false;
+  }, { nome: id });
+}
+
+ligaValor("subtotal", () => dinheiro(subtotal.valor));
+ligaValor("total", () => dinheiro(total.valor));
+
+ligaValor("desconto", () => (desconto.valor > 0 ? "− " + dinheiro(desconto.valor) : "—"));
+ligaValor("frete", () => (frete.valor === 0 ? "grátis" : dinheiro(frete.valor)));
+
+// Rotulos que explicam a regra: dependem do subtotal, nao do valor final.
+efeito(() => {
+  const falta = 1500 - subtotal.valor;
+  $("rotulo-desc").textContent =
+    falta > 0 ? `Desconto (faltam ${dinheiro(falta)} para 10%)` : "Desconto 10%";
+}, { nome: "rótulo-desconto" });
+
+efeito(() => {
+  const falta = 999 - (subtotal.valor - desconto.valor);
+  $("rotulo-frete").textContent =
+    falta > 0 ? `Frete (faltam ${dinheiro(falta)} p/ grátis)` : "Frete";
+}, { nome: "rótulo-frete" });
+
+// A lista inteira depende de itens e de length: adicionar ou remover redesenha.
+efeito(() => {
+  const ul = $("carrinho");
+  ul.innerHTML = "";
+
+  for (const item of loja.itens) {
+    const li = document.createElement("li");
+    li.className = "item";
+    li.innerHTML = `
+      <span class="nome"></span>
+      <span class="preco"></span>
+      <span class="qtd">
+        <button data-acao="menos" aria-label="Diminuir">−</button>
+        <span class="n"></span>
+        <button data-acao="mais" aria-label="Aumentar">+</button>
+        <button data-acao="remover" class="perigo" aria-label="Remover">×</button>
+      </span>`;
+
+    li.querySelector(".nome").textContent = item.nome;
+    li.querySelector(".preco").textContent = dinheiro(item.preco);
+    li.querySelector(".n").textContent = item.qtd;
+
+    li.addEventListener("click", (e) => {
+      const acao = e.target.dataset.acao;
+      if (!acao) return;
+      if (acao === "mais") item.qtd++;
+      if (acao === "menos" && item.qtd > 1) item.qtd--;
+      if (acao === "remover") loja.itens.splice(loja.itens.indexOf(item), 1);
+    });
+
+    ul.appendChild(li);
+  }
+}, { nome: "lista" });
+
+// --- Acoes ----------------------------------------------------------------
+
+const catalogo = [
+  ["Mousepad grande", 89.9], ["Webcam 1080p", 289.0],
+  ["Hub USB-C 7 portas", 219.9], ["Luminária de mesa", 129.0],
+  ["Headset com microfone", 399.0], ["SSD externo 1TB", 549.0],
+];
+
+$("add").addEventListener("click", () => {
+  const [nome, preco] = catalogo[Math.floor(Math.random() * catalogo.length)];
+  loja.itens.push({ id: loja.proximoId++, nome, preco, qtd: 1 });
+});
+
+// A diferenca entre com e sem lote e o ponto inteiro do botao: quatro escritas,
+// um redesenho.
+$("lote").addEventListener("click", () => {
+  emLote = true;
+  acumuladoNoLote = 0;
+  lote(() => {
+    for (const item of loja.itens.slice(0, 4)) {
+      item.qtd = 1 + Math.floor(Math.random() * 4);
+    }
+  });
+  emLote = false;
+});
+
+$("limpar-log").addEventListener("click", () => { log.innerHTML = ""; });
+
+escreverLog("alerta", "motor iniciado — mexa no carrinho ao lado");
+</script>
+</body>
+</html>

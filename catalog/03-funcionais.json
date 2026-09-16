@@ -1,0 +1,124 @@
+{
+  "grupo": "Funcionais e teoria de tipos",
+  "ordem": 3,
+  "descricao": "Linguagens onde o compilador é um parceiro, não um obstáculo. Quase todas transpilam para JavaScript ou WASM — rodam direto na página.",
+  "projetos": [
+    {
+      "id": "haskell-puro",
+      "lang": "Haskell", "langId": "haskell", "kind": "pure", "framework": null,
+      "title": "Interpretador de cálculo lambda",
+      "pitch": "Digite uma expressão lambda e veja cada passo de redução beta acontecendo, com renomeação de variável e avaliação preguiçosa visível.",
+      "why": "Haskell é a linguagem mais próxima da matemática que existe em uso real. Cálculo lambda é a fundação teórica de tudo — e em Haskell o código fica quase igual à definição formal.",
+      "runtime": "wasm", "toolchain": "GHC WASM backend",
+      "status": "planned", "tags": ["lambda", "preguiçoso", "teoria"]
+    },
+    {
+      "id": "haskell-servant",
+      "lang": "Haskell", "langId": "haskell", "kind": "framework", "framework": "Servant",
+      "title": "API cuja especificação é o tipo",
+      "pitch": "A API inteira é descrita como um tipo Haskell; cliente, documentação e servidor são derivados dele — mudar a rota quebra a compilação, não a produção.",
+      "why": "Servant leva 'tipos como especificação' ao extremo. É o argumento mais forte que existe a favor de tipagem forte, e não tem equivalente em outra linguagem.",
+      "runtime": "container", "toolchain": "Servant + Warp",
+      "status": "planned", "tags": ["tipos como API", "derivação", "corretude"]
+    },
+    {
+      "id": "ocaml-puro",
+      "lang": "OCaml", "langId": "ocaml", "kind": "pure", "framework": null,
+      "title": "Verificador de tipos Hindley-Milner",
+      "pitch": "Escreva código sem anotar nenhum tipo e veja o algoritmo de unificação deduzir todos eles, passo a passo.",
+      "why": "Inferência de tipos foi inventada nesse ramo de linguagens. OCaml é a ferramenta clássica para escrever compilador — e Rust, Flow e Hack nasceram em OCaml.",
+      "runtime": "js", "toolchain": "js_of_ocaml",
+      "status": "planned", "tags": ["inferência", "unificação", "compiladores"]
+    },
+    {
+      "id": "fsharp-puro",
+      "lang": "F#", "langId": "fsharp", "kind": "pure", "framework": null,
+      "title": "Modelagem de domínio que torna erro impossível",
+      "pitch": "Fluxo de pedido modelado com tipos soma: estado inválido simplesmente não pode ser construído. Tente quebrar — o compilador impede.",
+      "why": "'Make illegal states unrepresentable' é o lema do F#. É a técnica que eu mais uso para reduzir bug em sistema de cliente, e aqui fica explícita.",
+      "runtime": "js", "toolchain": "Fable",
+      "status": "planned", "tags": ["DDD", "tipos soma", "modelagem"]
+    },
+    {
+      "id": "elm-puro",
+      "lang": "Elm", "langId": "elm", "kind": "pure", "framework": null,
+      "title": "Aplicação com zero erro em tempo de execução",
+      "pitch": "Formulário complexo com validação e navegação, na arquitetura Model-Update-View — a linguagem garante que exceção de runtime não existe.",
+      "why": "Elm é a única linguagem de front-end que oferece essa garantia. A Arquitetura Elm foi o que inspirou o Redux.",
+      "runtime": "js", "toolchain": "elm make --optimize",
+      "status": "planned", "tags": ["sem exceção", "MVU", "front-end"]
+    },
+    {
+      "id": "purescript-puro",
+      "lang": "PureScript", "langId": "purescript", "kind": "pure", "framework": null,
+      "title": "Planilha reativa com sinais tipados",
+      "pitch": "Células com fórmula e propagação automática de dependência, com efeitos colaterais controlados por tipos.",
+      "why": "PureScript é Haskell que compila para JavaScript, com type classes de verdade. É o extremo do rigor funcional no navegador.",
+      "runtime": "js", "toolchain": "Spago + purs",
+      "status": "planned", "tags": ["type classes", "reativo", "puro"]
+    },
+    {
+      "id": "gleam-puro",
+      "lang": "Gleam", "langId": "gleam", "kind": "pure", "framework": null,
+      "title": "Roteador de mensagens tipado na BEAM",
+      "pitch": "Fluxo de mensagens entre atores com tipos verificados em compilação — a confiabilidade do Erlang com a segurança de tipos que ele nunca teve.",
+      "why": "Gleam é a linguagem nova mais interessante do ecossistema BEAM: resolve a única crítica séria a Erlang e Elixir, que é a ausência de tipagem estática.",
+      "runtime": "js", "toolchain": "gleam build --target javascript",
+      "status": "planned", "tags": ["BEAM", "tipos", "atores"]
+    },
+    {
+      "id": "lisp-puro",
+      "lang": "Common Lisp", "langId": "lisp", "kind": "pure", "framework": null,
+      "title": "Macros que reescrevem a linguagem",
+      "pitch": "Escreva uma macro no navegador e veja o código se transformar antes de rodar — adicionando sintaxe nova à própria linguagem.",
+      "why": "Homoiconicidade — código é dado — é o superpoder do Lisp que nenhuma linguagem popular copiou por inteiro. Ver a macroexpansão acontecendo explica sozinho.",
+      "runtime": "js", "toolchain": "JSCL / interpretador próprio",
+      "status": "planned", "tags": ["macros", "homoiconicidade", "metaprogramação"]
+    },
+    {
+      "id": "scheme-puro",
+      "lang": "Scheme", "langId": "scheme", "kind": "pure", "framework": null,
+      "title": "Interpretador metacircular",
+      "pitch": "Um Scheme escrito em Scheme, avaliando a si mesmo — o exercício clássico do SICP, com REPL aberto.",
+      "why": "O avaliador metacircular é o momento em que se entende o que uma linguagem realmente é. Poucas coisas demonstram fundamento melhor que isso.",
+      "runtime": "js", "toolchain": "BiwaScheme",
+      "status": "planned", "tags": ["SICP", "metacircular", "REPL"]
+    },
+    {
+      "id": "racket-puro",
+      "lang": "Racket", "langId": "racket", "kind": "pure", "framework": null,
+      "title": "Linguagem de domínio para diagrama",
+      "pitch": "Uma linguagem própria, com sintaxe própria, criada dentro do Racket para descrever e desenhar diagramas.",
+      "why": "Racket é a linguagem para criar linguagens. Definir uma nova sintaxe com `#lang` é algo que literalmente nenhuma outra plataforma faz tão bem.",
+      "runtime": "cast", "toolchain": "Racket + #lang",
+      "status": "planned", "tags": ["DSL", "#lang", "sintaxe"]
+    },
+    {
+      "id": "lean-puro",
+      "lang": "Lean 4", "langId": "lean", "kind": "pure", "framework": null,
+      "title": "Prova formal de um algoritmo de ordenação",
+      "pitch": "Demonstração matemática, verificada por máquina, de que a implementação está correta para toda entrada possível — não para os casos testados.",
+      "why": "Teste mostra ausência de bug nos casos que você lembrou. Prova formal mostra ausência de bug em todos. É o teto da corretude de software.",
+      "runtime": "cast", "toolchain": "Lean 4 + mathlib",
+      "status": "planned", "tags": ["prova formal", "tipos dependentes", "corretude"]
+    },
+    {
+      "id": "prolog-puro",
+      "lang": "Prolog", "langId": "prolog", "kind": "pure", "framework": null,
+      "title": "Resolvedor de enigma lógico",
+      "pitch": "O enigma das cinco casas (Zebra): você declara as regras, não o algoritmo, e o motor encontra a única solução possível.",
+      "why": "Programação lógica inverte tudo: descreve-se o problema, não o passo a passo. É a demonstração mais clara de que existe paradigma além de imperativo e funcional.",
+      "runtime": "js", "toolchain": "Tau-Prolog",
+      "status": "planned", "tags": ["lógica", "declarativo", "backtracking"]
+    },
+    {
+      "id": "smalltalk-puro",
+      "lang": "Smalltalk", "langId": "smalltalk", "kind": "pure", "framework": null,
+      "title": "Ambiente vivo onde tudo é objeto",
+      "pitch": "Sistema que se modifica enquanto roda: inspecione qualquer objeto, edite o método dele e veja o efeito imediato, sem recompilar nem reiniciar.",
+      "why": "Smalltalk inventou orientação a objetos, IDE, MVC e refatoração automática. O ambiente vivo continua sendo mais avançado que quase tudo que se usa hoje.",
+      "runtime": "js", "toolchain": "SqueakJS",
+      "status": "planned", "tags": ["OO original", "ambiente vivo", "história"]
+    }
+  ]
+}

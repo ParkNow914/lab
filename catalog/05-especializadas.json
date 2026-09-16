@@ -1,0 +1,124 @@
+{
+  "grupo": "Domínios especializados",
+  "ordem": 5,
+  "descricao": "Linguagens que existem para um domínio só — blockchain, jogos, hardware, ERP corporativo, shaders. Cada uma resolve um problema que linguagem de propósito geral resolve mal.",
+  "projetos": [
+    {
+      "id": "solidity-puro",
+      "lang": "Solidity", "langId": "solidity", "kind": "pure", "framework": null,
+      "title": "Contrato de garantia (escrow) auditado",
+      "pitch": "Contrato de custódia entre comprador e vendedor com liberação, disputa e reembolso — rodando numa blockchain local dentro do navegador.",
+      "why": "Em contrato inteligente, bug é dinheiro perdido e o código é imutável. Escrow é o caso clássico onde reentrância e controle de acesso precisam estar certos.",
+      "runtime": "js", "toolchain": "Foundry + EVM em JS",
+      "status": "planned", "tags": ["blockchain", "escrow", "segurança"]
+    },
+    {
+      "id": "solidity-hardhat",
+      "lang": "Solidity", "langId": "solidity", "kind": "framework", "framework": "Hardhat + OpenZeppelin",
+      "title": "Token com governança e testes de invariante",
+      "pitch": "Token com votação e cofre, coberto por testes de propriedade que tentam quebrar as invariantes com entradas aleatórias.",
+      "why": "OpenZeppelin é o padrão de contrato auditado. Teste de invariante (fuzzing) é o que separa contrato profissional de tutorial.",
+      "runtime": "js", "toolchain": "Hardhat + OpenZeppelin",
+      "status": "planned", "tags": ["DAO", "fuzzing", "auditoria"]
+    },
+    {
+      "id": "gdscript-puro",
+      "lang": "GDScript", "langId": "gdscript", "kind": "pure", "framework": "Godot",
+      "title": "Roguelike com geração procedural",
+      "pitch": "Masmorra gerada aleatoriamente a cada partida, com combate por turno, inventário e campo de visão — jogável na página.",
+      "why": "Godot exporta para HTML5 nativamente, então o jogo roda no portfólio sem download. Geração procedural mostra algoritmo, não só uso de engine.",
+      "runtime": "wasm", "toolchain": "Godot 4 export HTML5",
+      "status": "planned", "tags": ["jogo", "procedural", "roguelike"]
+    },
+    {
+      "id": "glsl-puro",
+      "lang": "GLSL", "langId": "glsl", "kind": "pure", "framework": null,
+      "title": "Cena 3D por ray marching em shader",
+      "pitch": "Mundo 3D inteiro descrito por função matemática e renderizado pela GPU — sem malha, sem vértice, com editor de shader ao vivo.",
+      "why": "Shader é programação paralela extrema: o mesmo código roda em milhões de pixels ao mesmo tempo. Ray marching com campo de distância é o ápice disso.",
+      "runtime": "static", "toolchain": "WebGL2 / WGSL",
+      "status": "planned", "tags": ["GPU", "shader", "ray marching"]
+    },
+    {
+      "id": "verilog-puro",
+      "lang": "SystemVerilog", "langId": "verilog", "kind": "pure", "framework": null,
+      "title": "Processador RISC-V de 5 estágios",
+      "pitch": "CPU descrita em hardware com pipeline, detecção de hazard e forwarding — simulada no navegador executando um programa de verdade.",
+      "why": "Descrição de hardware não é programação sequencial: tudo acontece em paralelo a cada ciclo de clock. Construir um processador é entender o computador de baixo para cima.",
+      "runtime": "wasm", "toolchain": "Verilator → WASM",
+      "status": "planned", "tags": ["hardware", "RISC-V", "pipeline"]
+    },
+    {
+      "id": "vhdl-puro",
+      "lang": "VHDL", "langId": "vhdl", "kind": "pure", "framework": null,
+      "title": "Controlador de semáforo em FPGA",
+      "pitch": "Máquina de estados temporizada com sensor de veículo e travessia de pedestre, com forma de onda dos sinais visível.",
+      "why": "VHDL é o padrão europeu e aeroespacial de descrição de hardware, mais verboso e mais rígido que Verilog — de propósito.",
+      "runtime": "cast", "toolchain": "GHDL + GTKWave",
+      "status": "planned", "tags": ["FPGA", "máquina de estados", "forma de onda"]
+    },
+    {
+      "id": "abap-puro",
+      "lang": "ABAP", "langId": "abap", "kind": "pure", "framework": "SAP",
+      "title": "Relatório ALV sobre dados de SAP",
+      "pitch": "Relatório interativo no padrão SAP com seleção, totalização e drill-down sobre tabela de pedidos.",
+      "why": "ABAP só existe dentro do SAP, que roda em boa parte das grandes empresas do mundo. É nicho fechado e muito bem pago.",
+      "runtime": "cast", "toolchain": "SAP ABAP (ambiente de teste)",
+      "status": "planned", "tags": ["SAP", "ERP", "corporativo"]
+    },
+    {
+      "id": "apex-puro",
+      "lang": "Apex", "langId": "apex", "kind": "pure", "framework": "Salesforce",
+      "title": "Automação de pipeline no Salesforce",
+      "pitch": "Gatilho que qualifica lead, distribui por território e dispara notificação, respeitando os limites de governador da plataforma.",
+      "why": "Apex roda em plataforma multi-inquilino com limite rígido de CPU e de consulta. Escrever em lote para não estourar governor limit é a habilidade central.",
+      "runtime": "cast", "toolchain": "Salesforce DX",
+      "status": "planned", "tags": ["CRM", "Salesforce", "governor limits"]
+    },
+    {
+      "id": "haxe-puro",
+      "lang": "Haxe", "langId": "haxe", "kind": "pure", "framework": null,
+      "title": "Biblioteca única compilada para 5 alvos",
+      "pitch": "A mesma lógica de negócio compilada para JavaScript, Python, C++, Java e PHP — com os cinco resultados rodando lado a lado.",
+      "why": "Haxe compila para quase toda plataforma existente. Ver o mesmo fonte virando cinco linguagens diferentes é uma demonstração que se explica sozinha.",
+      "runtime": "js", "toolchain": "Haxe multi-target",
+      "status": "planned", "tags": ["multi-alvo", "transpilação", "portabilidade"]
+    },
+    {
+      "id": "nix-puro",
+      "lang": "Nix", "langId": "nix", "kind": "pure", "framework": null,
+      "title": "Ambiente reproduzível bit a bit",
+      "pitch": "Uma definição declarativa que reconstrói o ambiente inteiro — mesmas versões, mesmos hashes — em qualquer máquina, em qualquer ano.",
+      "why": "'Na minha máquina funciona' é problema resolvido há uma década, e quase ninguém usa a solução. Nix é reprodutibilidade de verdade, não Docker com sorte.",
+      "runtime": "cast", "toolchain": "Nix flakes",
+      "status": "planned", "tags": ["reprodutibilidade", "declarativo", "DevOps"]
+    },
+    {
+      "id": "hcl-terraform",
+      "lang": "HCL", "langId": "hcl", "kind": "framework", "framework": "Terraform",
+      "title": "Infraestrutura como código com plano visual",
+      "pitch": "Stack completa descrita em HCL, com o grafo de dependência e o `plan` mostrando exatamente o que seria criado, alterado ou destruído.",
+      "why": "É como eu provisiono infraestrutura de cliente. O `plan` antes do `apply` é a rede de segurança que evita derrubar produção.",
+      "runtime": "static", "toolchain": "Terraform + grafo D3",
+      "status": "planned", "tags": ["IaC", "cloud", "grafo"]
+    },
+    {
+      "id": "mojo-puro",
+      "lang": "Mojo", "langId": "mojo", "kind": "pure", "framework": null,
+      "title": "Multiplicação de matrizes otimizada",
+      "pitch": "Mesmo algoritmo escrito em Python e em Mojo, com vetorização e paralelismo — e o comparativo de tempo medido.",
+      "why": "Mojo promete sintaxe Python com desempenho de C para IA. Multiplicação de matriz é o caso onde a promessa é verificável em número.",
+      "runtime": "cast", "toolchain": "Mojo SDK",
+      "status": "planned", "tags": ["IA", "SIMD", "performance"]
+    },
+    {
+      "id": "scratch-puro",
+      "lang": "Scratch", "langId": "scratch", "kind": "pure", "framework": null,
+      "title": "Jogo feito em blocos",
+      "pitch": "Projeto funcional montado por encaixe de blocos, rodando embutido na página.",
+      "why": "Scratch é como milhões de pessoas descobrem programação. Incluir mostra que eu levo ensino a sério — e é a entrada mais amigável do laboratório inteiro.",
+      "runtime": "static", "toolchain": "scratch-vm embutido",
+      "status": "planned", "tags": ["educação", "visual", "blocos"]
+    }
+  ]
+}

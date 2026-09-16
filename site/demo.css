@@ -1,0 +1,168 @@
+/* Casco compartilhado por toda pagina de demo em /lab/<id>/.
+   Cada projeto so escreve o conteudo dentro de <main class="palco">; cabecalho,
+   rodape, cores e tipografia vem daqui. Assim 88 demos continuam parecendo um
+   produto so, e mudar a identidade e mudar um arquivo. */
+
+:root {
+  --bg: #050810;
+  --bg-soft: #0a0f1e;
+  --bg-card: rgba(255, 255, 255, 0.03);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(52, 211, 153, 0.35);
+  --text: #e7ecf3;
+  --text-muted: #8b96a9;
+  --text-dim: #7b8699;
+  --accent: #34d399;
+  --accent-soft: rgba(52, 211, 153, 0.12);
+  --cyan: #22d3ee;
+  --amber: #fbbf24;
+  --rose: #fb7185;
+  --font-display: "Space Grotesk", "Space Grotesk Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", "Inter Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "JetBrains Mono Fallback", ui-monospace, "SF Mono", Menlo, monospace;
+  --radius: 16px;
+  --container: 1100px;
+  --surface: rgba(255, 255, 255, 0.04);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+.container { width: 100%; max-width: var(--container); margin-inline: auto; padding-inline: 20px; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+.skip-link { position: absolute; left: -9999px; background: var(--accent); color: #041016; padding: 10px 16px; font-weight: 600; z-index: 100; }
+.skip-link:focus { left: 0; top: 0; }
+
+/* ---------- Barra superior ---------- */
+
+.topo {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(5, 8, 16, 0.85); backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+.topo-in { display: flex; align-items: center; gap: 12px; height: 60px; }
+.voltar {
+  font-size: .85rem; color: var(--text-muted); text-decoration: none;
+  padding: 7px 13px; border: 1px solid var(--border); border-radius: 999px; transition: .2s; white-space: nowrap;
+}
+.voltar:hover { color: var(--text); border-color: var(--border-hover); }
+.topo-sp { flex: 1; }
+.topo-lang {
+  font-family: var(--font-mono); font-size: .74rem; font-weight: 600;
+  color: var(--cyan); background: rgba(34, 211, 238, .1);
+  border: 1px solid rgba(34, 211, 238, .22); padding: 3px 9px; border-radius: 6px;
+}
+.topo-fonte { font-size: .82rem; color: var(--text-muted); text-decoration: none; }
+.topo-fonte:hover { color: var(--accent); }
+
+/* ---------- Cabecalho do projeto ---------- */
+
+.cab { padding: 40px 0 26px; }
+.cab h1 {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: clamp(1.6rem, 4.5vw, 2.4rem); line-height: 1.12; letter-spacing: -.03em; margin: 0;
+}
+.cab .pitch { color: var(--text-muted); margin: 14px 0 0; max-width: 68ch; }
+
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.meta span {
+  font-family: var(--font-mono); font-size: .7rem; color: var(--text-dim);
+  background: var(--surface); border: 1px solid var(--border); padding: 4px 10px; border-radius: 999px;
+}
+
+/* A caixa que explica por que a linguagem foi escolhida. E o que transforma
+   uma demo em argumento. */
+.porque {
+  margin-top: 22px; padding: 16px 18px; border-radius: 12px;
+  background: var(--accent-soft); border: 1px solid rgba(52, 211, 153, .2);
+  font-size: .92rem; color: var(--text-muted); max-width: 72ch;
+}
+.porque b { color: var(--accent); display: block; margin-bottom: 5px; font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; font-family: var(--font-mono); }
+
+/* ---------- Palco ---------- */
+
+main.palco { padding-bottom: 80px; }
+
+.painel {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px; margin-top: 22px;
+}
+.painel > h2 {
+  font-family: var(--font-display); font-size: 1rem; font-weight: 600;
+  margin: 0 0 14px; letter-spacing: -.01em;
+}
+.painel > h2 .hint { font-family: var(--font-body); font-weight: 400; font-size: .82rem; color: var(--text-dim); margin-left: 8px; }
+
+.duas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 820px) { .duas { grid-template-columns: 1fr; } }
+
+/* ---------- Controles ---------- */
+
+button, .botao {
+  font-family: var(--font-body); font-size: .85rem; font-weight: 600;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  padding: 9px 15px; border-radius: 9px; cursor: pointer; transition: .18s;
+}
+button:hover, .botao:hover { border-color: var(--border-hover); background: rgba(255, 255, 255, .07); }
+button.pri { background: var(--accent-soft); border-color: rgba(52, 211, 153, .32); color: var(--accent); }
+button.pri:hover { background: rgba(52, 211, 153, .2); }
+button.perigo { color: var(--rose); border-color: rgba(251, 113, 133, .3); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+
+input[type="text"], input[type="number"], input[type="search"], textarea, select {
+  font-family: var(--font-mono); font-size: .86rem;
+  background: rgba(5, 8, 16, .6); border: 1px solid var(--border);
+  color: var(--text); padding: 9px 12px; border-radius: 9px; transition: .18s; width: 100%;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--border-hover); outline: none; background: rgba(5, 8, 16, .85); }
+textarea { resize: vertical; line-height: 1.5; }
+label { font-size: .8rem; color: var(--text-dim); display: block; margin-bottom: 5px; }
+
+.linha { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+
+/* ---------- Saida de codigo e log ---------- */
+
+pre, code, .mono { font-family: var(--font-mono); }
+
+pre.saida {
+  background: rgba(0, 0, 0, .35); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px; font-size: .8rem; line-height: 1.6; overflow: auto;
+  margin: 0; max-height: 380px; white-space: pre-wrap; word-break: break-word;
+}
+
+.log { font-family: var(--font-mono); font-size: .76rem; max-height: 300px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+.log li { padding: 5px 9px; border-left: 2px solid var(--border); margin-bottom: 3px; color: var(--text-dim); background: rgba(255, 255, 255, .015); }
+.log li.ok { border-left-color: var(--accent); color: var(--text-muted); }
+.log li.alerta { border-left-color: var(--amber); color: var(--amber); }
+.log li.erro { border-left-color: var(--rose); color: var(--rose); }
+.log li .t { color: var(--text-dim); opacity: .6; margin-right: 8px; }
+
+canvas { max-width: 100%; border-radius: 10px; display: block; background: #02040a; }
+
+.carregando { color: var(--text-dim); font-size: .88rem; display: flex; align-items: center; gap: 10px; padding: 20px 0; }
+.carregando::before {
+  content: ""; width: 14px; height: 14px; border-radius: 50%; flex: none;
+  border: 2px solid var(--border); border-top-color: var(--accent); animation: girar .7s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* ---------- Rodape ---------- */
+
+.rodape { border-top: 1px solid var(--border); padding: 32px 0; color: var(--text-dim); font-size: .84rem; }
+.rodape a { color: var(--accent); text-decoration: none; }
+.rodape a:hover { text-decoration: underline; }
+.rodape-in { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
