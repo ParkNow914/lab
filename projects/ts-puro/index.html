@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tipos derivados do esquema em TypeScript — Laboratório Autark</title>
+<meta name="description" content="Uma biblioteca de validação em que o tipo estático nasce do próprio esquema, com o compilador do TypeScript rodando de verdade no navegador.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  textarea#codigo { min-height: 330px; font-size: .8rem; line-height: 1.6; }
+
+  .exemplos { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .exemplos button { font-size: .75rem; padding: 6px 11px; font-family: var(--font-mono); }
+  .exemplos button.ativo { background: var(--accent-soft); border-color: rgba(52,211,153,.32); color: var(--accent); }
+  .exemplos button.quebra { color: var(--rose); border-color: rgba(251,113,133,.28); }
+  .exemplos button.quebra.ativo { background: rgba(251,113,133,.12); color: var(--rose); border-color: rgba(251,113,133,.4); }
+
+  .explica {
+    font-size: .85rem; color: var(--text-muted); margin: 0 0 12px;
+    padding: 11px 14px; background: var(--surface); border-radius: 9px;
+    border-left: 2px solid var(--accent);
+  }
+  .explica.quebra { border-left-color: var(--rose); }
+
+  .tipo-inferido {
+    background: rgba(34,211,238,.06); border: 1px solid rgba(34,211,238,.25);
+    border-radius: 10px; padding: 14px; margin-bottom: 14px;
+  }
+  .tipo-inferido .rot {
+    font-family: var(--font-mono); font-size: .66rem; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--cyan); margin-bottom: 8px;
+  }
+  .tipo-inferido pre {
+    margin: 0; font-family: var(--font-mono); font-size: .8rem; line-height: 1.6;
+    color: var(--text); white-space: pre-wrap; word-break: break-word;
+  }
+
+  .diags { margin: 0; padding: 0; list-style: none; }
+  .diags li {
+    font-family: var(--font-mono); font-size: .76rem; padding: 8px 11px;
+    border-radius: 8px; margin-bottom: 6px; white-space: pre-wrap;
+    background: rgba(251,113,133,.07); border: 1px solid rgba(251,113,133,.28); color: var(--rose);
+  }
+  .diags li .ln { color: var(--text-dim); margin-right: 8px; }
+
+  .sem-erro {
+    font-family: var(--font-mono); font-size: .78rem; color: var(--accent);
+    background: var(--accent-soft); border: 1px solid rgba(52,211,153,.22);
+    border-radius: 8px; padding: 9px 12px;
+  }
+
+  pre.saida-run {
+    background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px; font-size: .78rem; line-height: 1.6; overflow: auto; margin: 0;
+    max-height: 300px; white-space: pre-wrap; color: var(--text-muted);
+  }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+
+  details.lib summary {
+    cursor: pointer; font-size: .82rem; color: var(--accent); margin-bottom: 10px;
+  }
+  details.lib pre {
+    background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px; font-size: .72rem; line-height: 1.55; overflow: auto; margin: 0;
+    max-height: 420px; color: var(--text-muted);
+  }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">TypeScript</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/ts-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>O tipo nasce do esquema, não do seu teclado</h1>
+  <p class="pitch">
+    Mude o esquema ao lado e veja o <strong>tipo TypeScript se reescrever sozinho</strong>.
+    Não há interface escrita à mão em lugar nenhum: o tipo é derivado da estrutura por
+    tipos condicionais e mapeados. E não é simulação — é o compilador do TypeScript de
+    verdade, rodando nesta página.
+  </p>
+
+  <div class="meta">
+    <span>TypeScript 5</span>
+    <span>tipos condicionais e mapeados</span>
+    <span><code>infer</code></span>
+    <span>compilador rodando no navegador</span>
+    <span>0 dependências na biblioteca</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    O sistema de tipos do TypeScript é uma linguagem própria, e quase todo mundo usa só a
+    parte fácil dela. Derivar o tipo a partir do esquema — inclusive transformar campo
+    opcional em <b>chave</b> opcional — é o truque que sustenta o Zod e o Prisma. É a
+    diferença entre usar TypeScript e programar o compilador.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+    <div class="duas">
+
+      <section class="painel">
+        <h2>O esquema <span class="hint">edite e verifique</span></h2>
+
+        <div class="exemplos" id="exemplos"></div>
+        <p class="explica" id="explica">Baixando o compilador do TypeScript…</p>
+
+        <label for="codigo">app.ts</label>
+        <textarea id="codigo" spellcheck="false" aria-label="Código TypeScript"></textarea>
+
+        <div class="linha" style="margin-top:12px">
+          <button class="pri" id="verificar" disabled>Verificar e executar</button>
+          <span style="font-size:.78rem;color:var(--text-dim);align-self:center">Ctrl+Enter também roda</span>
+        </div>
+      </section>
+
+      <section class="painel">
+        <h2>O que o compilador diz</h2>
+
+        <div class="tipo-inferido">
+          <div class="rot">tipo inferido de Usuario</div>
+          <pre id="tipo">—</pre>
+        </div>
+
+        <div id="diagnosticos"></div>
+
+        <h2 style="margin-top:22px">Execução <span class="hint">validação em tempo de execução</span></h2>
+        <pre class="saida-run" id="saida">—</pre>
+      </section>
+
+    </div>
+
+    <section class="painel">
+      <h2>A biblioteca</h2>
+      <p class="dica">
+        A parte que faz o tipo aparecer sozinho são estas três linhas. O resto é validação
+        comum.
+      </p>
+      <pre class="saida-run" style="max-height:none">type Inferir&lt;E&gt; = E extends Esquema&lt;infer T&gt; ? T : never;
+
+type ChavesOpcionais&lt;F&gt; = { [K in keyof F]: undefined extends Inferir&lt;F[K]&gt; ? K : never }[keyof F];
+
+type SaidaObjeto&lt;F&gt; = { [K in ChavesExigidas&lt;F&gt;]: Inferir&lt;F[K]&gt; } &amp; { [K in ChavesOpcionais&lt;F&gt;]?: Inferir&lt;F[K]&gt; };</pre>
+
+      <p class="dica" style="margin-top:14px">
+        <code>infer T</code> captura o tipo de dentro de <code>Esquema&lt;T&gt;</code>.
+        <code>ChavesOpcionais</code> percorre os campos, testa quais aceitam
+        <code>undefined</code> e devolve só os nomes deles. O resultado: um campo marcado
+        com <code>opcional()</code> vira <b>chave opcional</b> no tipo — e não
+        <code>string | undefined</code>, que ainda obrigaria a escrever a chave.
+      </p>
+
+      <details class="lib">
+        <summary>Ver a biblioteca inteira (esquema.ts)</summary>
+        <pre id="fonte-lib">carregando…</pre>
+      </details>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/ts-puro">Ver o código</a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/typescript@5.9.2/lib/typescript.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+
+const EXEMPLOS = [
+  {
+    nome: "básico",
+    explica: "Um cadastro simples. Repare no tipo ao lado: ninguém escreveu aquela interface — ela saiu do esquema.",
+    codigo: `const Usuario = objeto({
+  nome: texto().min(3),
+  idade: numero().inteiro().min(18),
+  email: texto().email(),
+});
+
+type Usuario = Inferir<typeof Usuario>;
+
+const r = Usuario.validar({
+  nome: "Alisson",
+  idade: 27,
+  email: "alisson@autarktech.com.br",
+}, "");
+
+mostrar(r);`,
+  },
+  {
+    nome: "campo opcional",
+    explica: "<b>apelido</b> vira chave <b>opcional</b> no tipo — com <code>?</code>, e não <code>string | undefined</code>. Essa distinção é o que permite omitir a chave em vez de escrever <code>undefined</code>.",
+    codigo: `const Usuario = objeto({
+  nome: texto().min(3),
+  idade: numero().inteiro().min(18),
+  apelido: opcional(texto()),
+  tags: lista(texto()),
+  ativo: booleano(),
+});
+
+type Usuario = Inferir<typeof Usuario>;
+
+// Sem "apelido": continua válido.
+mostrar(Usuario.validar({
+  nome: "Alisson",
+  idade: 27,
+  tags: ["ia", "whatsapp"],
+  ativo: true,
+}, ""));`,
+  },
+  {
+    nome: "aninhado",
+    explica: "Objeto dentro de objeto, lista de objetos e união. O tipo acompanha tudo, em qualquer profundidade.",
+    codigo: `const Endereco = objeto({
+  rua: texto().min(3),
+  numero: uma(numero(), texto()),
+  cidade: texto(),
+});
+
+const Pedido = objeto({
+  cliente: texto(),
+  entrega: Endereco,
+  itens: lista(objeto({
+    produto: texto(),
+    qtd: numero().inteiro().min(1),
+  })),
+  observacao: opcional(texto()),
+});
+
+type Usuario = Inferir<typeof Pedido>;
+
+mostrar(Pedido.validar({
+  cliente: "Loja Miguel",
+  entrega: { rua: "Rua das Flores", numero: "120-A", cidade: "Lorena" },
+  itens: [{ produto: "Teclado", qtd: 2 }],
+}, ""));`,
+  },
+  {
+    nome: "dado inválido",
+    quebra: true,
+    explica: "Agora com dado errado. A validação em tempo de execução acusa <b>todos</b> os problemas de uma vez, com o caminho de cada um — não só o primeiro.",
+    codigo: `const Usuario = objeto({
+  nome: texto().min(3),
+  idade: numero().inteiro().min(18),
+  email: texto().email(),
+  tags: lista(texto()),
+});
+
+type Usuario = Inferir<typeof Usuario>;
+
+mostrar(Usuario.validar({
+  nome: "Al",
+  idade: 17.5,
+  email: "nao-e-email",
+  tags: ["ok", 42, "outro"],
+}, ""));`,
+  },
+  {
+    nome: "erro de tipo",
+    quebra: true,
+    explica: "Aqui o <b>compilador</b> reclama, não a execução. O campo <code>idade</code> é número no esquema, então atribuir o resultado a um tipo com <code>idade: string</code> não compila.",
+    codigo: `const Usuario = objeto({
+  nome: texto(),
+  idade: numero(),
+});
+
+type Usuario = Inferir<typeof Usuario>;
+
+// Errado de propósito: idade é number, não string.
+const errado: { nome: string; idade: string } = {
+  nome: "Alisson",
+  idade: 27,
+};
+
+mostrar(errado);`,
+  },
+];
+
+// --- Compilador -----------------------------------------------------------
+
+let libEs5 = "";
+let fonteLib = "";
+
+const OPCOES = {
+  target: ts.ScriptTarget.ES5,
+  lib: ["lib.es5.d.ts"],
+  strict: true,
+  noEmitOnError: false,
+  skipLibCheck: true,
+  // Sem modulos: os dois arquivos compartilham o escopo global, o que evita
+  // resolucao de import dentro do navegador.
+  moduleResolution: ts.ModuleResolutionKind.Classic,
+};
+
+function criarServico(codigoUsuario) {
+  const arquivos = {
+    "lib.es5.d.ts": libEs5,
+    // `mostrar` e injetada na execucao, mas o compilador precisa saber que ela
+    // existe — senao acusa "Cannot find name" num codigo que roda perfeitamente.
+    "globais.d.ts": "declare function mostrar(valor: unknown): void;",
+    "esquema.ts": fonteLib,
+    "app.ts": codigoUsuario,
+  };
+
+  const host = {
+    getScriptFileNames: () => ["globais.d.ts", "esquema.ts", "app.ts"],
+    getScriptVersion: () => "1",
+    getScriptSnapshot: (nome) =>
+      arquivos[nome] !== undefined ? ts.ScriptSnapshot.fromString(arquivos[nome]) : undefined,
+    getCurrentDirectory: () => "/",
+    getCompilationSettings: () => OPCOES,
+    getDefaultLibFileName: () => "lib.es5.d.ts",
+    fileExists: (nome) => arquivos[nome] !== undefined,
+    readFile: (nome) => arquivos[nome],
+  };
+
+  return ts.createLanguageService(host, ts.createDocumentRegistry());
+}
+
+// O compilador devolve o tipo inteiro numa linha so. Indentar por nivel de
+// chave deixa legivel sem precisar de um formatador de verdade — e este painel
+// e o centro da pagina, entao vale a pena ler bem.
+function formatarTipo(txt) {
+  if (!txt) return "—";
+
+  // O compilador ja devolve o tipo com quebras e recuo proprios. Achatar tudo
+  // numa linha antes de indentar evita somar formatacao sobre formatacao.
+  const s = txt
+    .replace(/^type\s+\w+\s*=\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const recuo = (n) => "  ".repeat(Math.max(0, n));
+
+  let saida = "";
+  let nivel = 0;
+
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+
+    if (c === "{") {
+      nivel++;
+      saida += "{\n" + recuo(nivel);
+      while (s[i + 1] === " ") i++;
+    } else if (c === "}") {
+      nivel--;
+      saida += "\n" + recuo(nivel) + "}";
+    } else if (c === ";") {
+      saida += ";";
+      while (s[i + 1] === " ") i++;
+      // Antes de "}" nao quebra: o proprio "}" ja poe quebra e recuo.
+      if (s[i + 1] !== "}") saida += "\n" + recuo(nivel);
+    } else {
+      saida += c;
+    }
+  }
+
+  return saida;
+}
+
+function verificar() {
+  const codigo = $("codigo").value;
+  const servico = criarServico(codigo);
+
+  // --- diagnosticos ---
+  const diags = [
+    ...servico.getSyntacticDiagnostics("app.ts"),
+    ...servico.getSemanticDiagnostics("app.ts"),
+  ];
+
+  const caixa = $("diagnosticos");
+  if (diags.length === 0) {
+    caixa.innerHTML = `<div class="sem-erro">Sem erro de tipo.</div>`;
+  } else {
+    caixa.innerHTML = `<ul class="diags">${diags.map((d) => {
+      const msg = ts.flattenDiagnosticMessageText(d.messageText, "\n");
+      let onde = "";
+      if (d.file && d.start !== undefined) {
+        const p = d.file.getLineAndCharacterOfPosition(d.start);
+        onde = `<span class="ln">linha ${p.line + 1}</span>`;
+      }
+      return `<li>${onde}${msg.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]))}</li>`;
+    }).join("")}</ul>`;
+  }
+
+  // --- tipo inferido ---
+  // Acha a declaracao `type Usuario = ...` e pergunta ao compilador o que ela
+  // significa depois de resolvida.
+  const idx = codigo.search(/\btype\s+Usuario\b/);
+  if (idx >= 0) {
+    const posNome = codigo.indexOf("Usuario", idx + 4);
+    const info = servico.getQuickInfoAtPosition("app.ts", posNome);
+    const txt = info ? ts.displayPartsToString(info.displayParts) : "";
+    $("tipo").textContent = formatarTipo(txt);
+  } else {
+    $("tipo").textContent = "(declare `type Usuario = Inferir<typeof …>` para ver o tipo aqui)";
+  }
+
+  executar(codigo);
+}
+
+// --- Execução -------------------------------------------------------------
+
+function executar(codigoUsuario) {
+  const linhas = [];
+  const mostrar = (v) => {
+    if (v && typeof v === "object" && "ok" in v) {
+      linhas.push(v.ok
+        ? "válido\n" + JSON.stringify(v.valor, null, 2)
+        : "inválido — " + v.erros.length + " problema(s):\n  " + v.erros.join("\n  "));
+    } else {
+      linhas.push(JSON.stringify(v, null, 2));
+    }
+  };
+
+  try {
+    const jsLib = ts.transpileModule(fonteLib, { compilerOptions: OPCOES }).outputText;
+    const jsApp = ts.transpileModule(codigoUsuario, { compilerOptions: OPCOES }).outputText;
+
+    // `new Function` em vez de eval: o codigo roda com escopo proprio e sem
+    // acesso as variaveis desta funcao, a nao ser as que eu passo.
+    const fn = new Function("mostrar", jsLib + "\n;\n" + jsApp);
+    fn(mostrar);
+
+    $("saida").textContent = linhas.join("\n\n") || "(o código não chamou mostrar())";
+  } catch (e) {
+    $("saida").textContent = "Erro em tempo de execução:\n" + (e && e.message ? e.message : e);
+  }
+}
+
+// --- Interface ------------------------------------------------------------
+
+function montarExemplos() {
+  const caixa = $("exemplos");
+  EXEMPLOS.forEach((ex, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = ex.nome;
+    if (ex.quebra) b.classList.add("quebra");
+    b.addEventListener("click", () => {
+      $("codigo").value = ex.codigo;
+      $("explica").innerHTML = ex.explica;
+      $("explica").className = "explica" + (ex.quebra ? " quebra" : "");
+      caixa.querySelectorAll("button").forEach((o) => o.classList.remove("ativo"));
+      b.classList.add("ativo");
+      verificar();
+    });
+    if (i === 0) b.classList.add("ativo");
+    caixa.appendChild(b);
+  });
+}
+
+$("verificar").addEventListener("click", verificar);
+$("codigo").addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); verificar(); }
+});
+
+montarExemplos();
+$("codigo").value = EXEMPLOS[0].codigo;
+$("explica").innerHTML = EXEMPLOS[0].explica;
+
+Promise.all([
+  fetch("esquema.ts").then((r) => r.text()),
+  fetch("https://cdn.jsdelivr.net/npm/typescript@5.9.2/lib/lib.es5.d.ts").then((r) => r.text()),
+]).then(([lib, es5]) => {
+  fonteLib = lib;
+  libEs5 = es5;
+
+  $("fonte-lib").textContent = lib;
+  $("verificar").disabled = false;
+  verificar();
+}).catch((e) => {
+  $("explica").innerHTML = `<span style="color:var(--rose)">Não consegui carregar o compilador: ${e}</span>`;
+  console.error(e);
+});
+</script>
+</body>
+</html>

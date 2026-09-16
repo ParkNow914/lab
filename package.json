@@ -1,0 +1,17 @@
+{
+  "name": "lab-poliglota",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Um projeto rodando de verdade em cada linguagem de programacao.",
+  "scripts": {
+    "build": "node tools/build-catalog.mjs && node tools/build-site.mjs",
+    "test": "node tools/testar-demos.mjs",
+    "novo": "node tools/novo-projeto.mjs",
+    "servir": "node tools/build-catalog.mjs && node tools/build-site.mjs && npx --yes serve dist"
+  },
+  "devDependencies": {
+    "playwright": "^1.50.0",
+    "wabt": "^1.0.36"
+  }
+}
