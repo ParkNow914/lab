@@ -265,6 +265,11 @@ mostre n`,
 
 let wasm = null;
 const codificador = new TextEncoder();
+
+// O Rust separa os campos da resposta com o byte 0x01. Escrito como
+// caractere literal ele acaba dentro do HTML — e U+0001 e ponto de codigo
+// proibido em HTML, o que reprova no validador do W3C.
+const SEPARADOR = String.fromCharCode(1);
 const decodificador = new TextDecoder();
 
 function memoria() {
@@ -288,8 +293,8 @@ function executar(fonte) {
   wasm.exports.liberar(pSaida, tamanho + 4);
 
   // "ok\x01passos\x01saida"  ou  "erro\x010\x01mensagem"
-  const [estado, passos, ...resto] = texto.split("");
-  return { ok: estado === "ok", passos: Number(passos) || 0, texto: resto.join("") };
+  const [estado, passos, ...resto] = texto.split(SEPARADOR);
+  return { ok: estado === "ok", passos: Number(passos) || 0, texto: resto.join(SEPARADOR) };
 }
 
 function rodar() {

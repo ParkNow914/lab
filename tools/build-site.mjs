@@ -61,7 +61,35 @@ for (const id of pastas) {
   publicados.push(id);
 }
 
-// 4. Sincroniza o status: o catalogo nao pode dizer "no ar" para uma pasta que
+// 4. Caractere de controle proibido em HTML.
+//
+// HTML so aceita tab, LF e CR entre os codigos abaixo de 32. Um U+0001 escrito
+// direto na pagina (por exemplo como separador de campos de uma resposta de
+// WebAssembly) reprova no validador do W3C — e a falha so aparecia na CI,
+// minutos depois. Aqui custa milissegundos.
+const PERMITIDOS = new Set([9, 10, 13]);
+const comControle = [];
+
+for (const id of publicados) {
+  const caminho = join(dist, id, "index.html");
+  const bytes = await readFile(caminho);
+  const ruins = new Set();
+  for (const b of bytes) {
+    if (b < 32 && !PERMITIDOS.has(b)) ruins.add(b);
+  }
+  if (ruins.size) {
+    comControle.push(`${id}: ${[...ruins].map((b) => "U+" + b.toString(16).padStart(4, "0")).join(", ")}`);
+  }
+}
+
+if (comControle.length) {
+  console.error("\nERRO: caractere de controle proibido em HTML:");
+  for (const c of comControle) console.error(`  x ${c}`);
+  console.error('Use String.fromCharCode(n) em vez de escrever o caractere na pagina.');
+  process.exit(1);
+}
+
+// 5. Sincroniza o status: o catalogo nao pode dizer "no ar" para uma pasta que
 // nao existe, nem "planejado" para uma demo que ja esta publicada.
 let corrigidos = 0;
 for (const p of projetos) {
@@ -77,7 +105,7 @@ if (corrigidos) {
   await writeFile(join(dist, "catalog.json"), JSON.stringify(catalogo, null, 2), "utf8");
 }
 
-// 5. Relatorio.
+// 6. Relatorio.
 console.log(`\nPublicado em dist/`);
 console.log(`  ${publicados.length} demo(s): ${publicados.join(", ") || "(nenhuma ainda)"}`);
 console.log(`  ${projetos.length - publicados.length} ainda planejados`);
