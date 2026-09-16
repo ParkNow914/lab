@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uma linguagem de programação escrita em Rust — Laboratório Autark</title>
+<meta name="description" content="Lexer, parser de descida recursiva e interpretador escritos em Rust sem nenhuma dependência, compilados para WebAssembly. Escreva código e execute.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  textarea#codigo { min-height: 360px; font-size: .82rem; line-height: 1.6; }
+
+  .exemplos { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .exemplos button { font-size: .75rem; padding: 6px 11px; font-family: var(--font-mono); }
+  .exemplos button.ativo { background: var(--accent-soft); border-color: rgba(52,211,153,.32); color: var(--accent); }
+  .exemplos button.quebra { color: var(--rose); border-color: rgba(251,113,133,.28); }
+  .exemplos button.quebra.ativo { background: rgba(251,113,133,.12); color: var(--rose); border-color: rgba(251,113,133,.4); }
+
+  .explica {
+    font-size: .85rem; color: var(--text-muted); margin: 0 0 12px;
+    padding: 11px 14px; background: var(--surface); border-radius: 9px;
+    border-left: 2px solid var(--accent);
+  }
+  .explica.quebra { border-left-color: var(--rose); }
+
+  pre.saida-exec {
+    background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; font-size: .82rem; line-height: 1.6; overflow: auto; margin: 0;
+    min-height: 200px; max-height: 420px; white-space: pre-wrap; color: var(--text);
+  }
+  pre.saida-exec.erro { border-color: rgba(251,113,133,.35); background: rgba(251,113,133,.06); color: var(--rose); }
+
+  .num-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(115px, 1fr)); gap: 10px; margin-top: 14px; }
+  .num-grid .k { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; }
+  .num-grid .k .n { font-family: var(--font-mono); font-size: 1.1rem; color: var(--accent); line-height: 1.2; }
+  .num-grid .k .l { font-size: .7rem; color: var(--text-dim); margin-top: 3px; }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+
+  .gram { font-family: var(--font-mono); font-size: .74rem; color: var(--text-dim); line-height: 1.9; }
+  .gram b { color: var(--cyan); font-weight: 500; }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">Rust</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/rust-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Uma linguagem de programação inteira, em 700 linhas de Rust</h1>
+  <p class="pitch">
+    Lexer, parser de descida recursiva e interpretador de árvore — sem nenhuma
+    dependência, nem <code>wasm-bindgen</code>. A linguagem tem variáveis, condicionais,
+    laços, funções e <strong>recursão</strong>. Escreva no editor e execute: quem está
+    rodando o seu código é Rust compilado para WebAssembly.
+  </p>
+
+  <div class="meta">
+    <span>Rust 2021</span>
+    <span>0 dependências</span>
+    <span>wasm32-unknown-unknown</span>
+    <span>121 KB de WebAssembly</span>
+    <span>4 testes unitários</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    Rust brilha em software que não pode errar. Cada erro possível é uma variante de
+    <code>enum</code>, cada operação que pode falhar devolve <code>Result</code>, e o
+    <code>match</code> exaustivo faz o compilador <b>recusar o código</b> se eu esquecer um
+    caso. Um interpretador escrito assim não tem como entrar em estado inválido — e é por
+    isso que ele consegue reportar o erro com linha em vez de travar.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+    <div class="duas">
+
+      <section class="painel">
+        <h2>Seu programa <span class="hint">pode escrever o que quiser</span></h2>
+
+        <div class="exemplos" id="exemplos"></div>
+        <p class="explica" id="explica">Carregando o interpretador…</p>
+
+        <label for="codigo">código</label>
+        <textarea id="codigo" spellcheck="false" aria-label="Código na linguagem"></textarea>
+
+        <div class="linha" style="margin-top:12px">
+          <button class="pri" id="rodar" disabled>Executar</button>
+          <span style="font-size:.78rem;color:var(--text-dim);align-self:center">Ctrl+Enter também roda</span>
+        </div>
+      </section>
+
+      <section class="painel">
+        <h2>Saída</h2>
+        <pre class="saida-exec" id="saida">—</pre>
+
+        <div class="num-grid">
+          <div class="k"><div class="n" id="k-ms">—</div><div class="l">tempo de execução</div></div>
+          <div class="k"><div class="n" id="k-passos">—</div><div class="l">passos avaliados</div></div>
+          <div class="k"><div class="n" id="k-bytes">121 KB</div><div class="l">tamanho do WASM</div></div>
+        </div>
+
+        <h2 style="margin-top:26px">A linguagem</h2>
+        <div class="gram">
+          <b>seja</b> x = 10<br>
+          x = x + 1<br>
+          <b>mostre</b> "texto" + x<br>
+          <b>se</b> x &gt; 5 { … } <b>senao</b> { … }<br>
+          <b>enquanto</b> x &lt; 100 { … }<br>
+          <b>funcao</b> nome(a, b) { <b>devolva</b> a + b }<br>
+          <span style="color:var(--text-dim)">embutidas: raiz, piso, abs, tamanho</span><br>
+          <span style="color:var(--text-dim)">operadores: + - * / % == != &lt; &lt;= &gt; &gt;= e ou nao</span>
+        </div>
+
+        <p class="dica" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border)">
+          <b>Sem wasm-bindgen.</b> A ponte com o JavaScript é manual: a página aloca um
+          buffer pelo <code>alocar()</code> do Rust, escreve o UTF-8 nele e recebe de volta
+          um ponteiro para <code>[tamanho][bytes]</code>. WebAssembly só sabe trocar
+          números — strings são uma convenção construída em cima disso.
+        </p>
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/rust-puro">Ler o lib.rs</a>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+const EXEMPLOS = [
+  {
+    nome: "fibonacci",
+    explica: "Recursão de verdade: cada chamada empilha um escopo novo, e o resultado sobe de volta pela árvore.",
+    codigo: `# Fibonacci recursivo
+funcao fib(n) {
+  se n < 2 {
+    devolva n
+  }
+  devolva fib(n - 1) + fib(n - 2)
+}
+
+seja i = 0
+enquanto i <= 15 {
+  mostre "fib(" + i + ") = " + fib(i)
+  i = i + 1
+}`,
+  },
+  {
+    nome: "primos",
+    explica: "Laço dentro de laço, com uma função auxiliar. O crivo é ingênuo de propósito — dá para ver o custo no contador de passos.",
+    codigo: `# Números primos até 100
+funcao primo(n) {
+  se n < 2 { devolva falso }
+  seja d = 2
+  enquanto d * d <= n {
+    se n % d == 0 {
+      devolva falso
+    }
+    d = d + 1
+  }
+  devolva verdadeiro
+}
+
+seja n = 2
+seja achados = 0
+seja linha = ""
+
+enquanto n <= 100 {
+  se primo(n) {
+    linha = linha + n + " "
+    achados = achados + 1
+  }
+  n = n + 1
+}
+
+mostre linha
+mostre "total: " + achados + " primos"`,
+  },
+  {
+    nome: "fizzbuzz",
+    explica: "O clássico. Note o <b>senao se</b> encadeado e a concatenação entre texto e número.",
+    codigo: `seja i = 1
+enquanto i <= 30 {
+  se i % 15 == 0 {
+    mostre "FizzBuzz"
+  } senao se i % 3 == 0 {
+    mostre "Fizz"
+  } senao se i % 5 == 0 {
+    mostre "Buzz"
+  } senao {
+    mostre i
+  }
+  i = i + 1
+}`,
+  },
+  {
+    nome: "raiz quadrada",
+    explica: "Método de Newton convergindo. Mostra o interpretador lidando com ponto flutuante e comparação.",
+    codigo: `# Raiz quadrada pelo método de Newton,
+# comparada com a função embutida.
+funcao newton(alvo) {
+  seja x = alvo / 2
+  seja passo = 0
+  enquanto passo < 20 {
+    x = (x + alvo / x) / 2
+    passo = passo + 1
+  }
+  devolva x
+}
+
+seja n = 2
+enquanto n <= 10 {
+  mostre "raiz(" + n + ") = " + newton(n) + "  |  embutida: " + raiz(n)
+  n = n + 1
+}`,
+  },
+  {
+    nome: "erro com linha",
+    quebra: true,
+    explica: "Um erro de propósito. Repare que a mensagem diz <b>qual linha</b> e <b>o que</b> aconteceu — não é um travamento genérico.",
+    codigo: `seja a = 10
+seja b = 0
+
+mostre "antes"
+mostre a / b
+mostre "esta linha nunca roda"`,
+  },
+  {
+    nome: "laço infinito",
+    quebra: true,
+    explica: "Um laço que nunca termina. O interpretador tem um teto de passos: em vez de travar a sua aba, ele para e explica.",
+    codigo: `# Sem o teto de passos, isto travaria
+# o navegador do visitante para sempre.
+seja n = 0
+enquanto verdadeiro {
+  n = n + 1
+}
+mostre n`,
+  },
+];
+
+// --- Ponte com o WebAssembly ----------------------------------------------
+
+let wasm = null;
+const codificador = new TextEncoder();
+const decodificador = new TextDecoder();
+
+function memoria() {
+  // Relido a cada uso: o heap cresce e a referencia antiga fica destacada.
+  return wasm.exports.memory.buffer;
+}
+
+function executar(fonte) {
+  const bytes = codificador.encode(fonte);
+
+  const pEntrada = wasm.exports.alocar(bytes.length);
+  new Uint8Array(memoria()).set(bytes, pEntrada);
+
+  const pSaida = wasm.exports.avaliar(pEntrada, bytes.length);
+
+  // A resposta e [4 bytes de tamanho, little endian][UTF-8].
+  const tamanho = new DataView(memoria()).getUint32(pSaida, true);
+  const texto = decodificador.decode(new Uint8Array(memoria(), pSaida + 4, tamanho));
+
+  wasm.exports.liberar(pEntrada, bytes.length);
+  wasm.exports.liberar(pSaida, tamanho + 4);
+
+  // "ok\x01passos\x01saida"  ou  "erro\x010\x01mensagem"
+  const [estado, passos, ...resto] = texto.split("");
+  return { ok: estado === "ok", passos: Number(passos) || 0, texto: resto.join("") };
+}
+
+function rodar() {
+  if (!wasm) return;
+
+  const t0 = performance.now();
+  let r;
+  try {
+    r = executar($("codigo").value);
+  } catch (e) {
+    $("saida").className = "saida-exec erro";
+    $("saida").textContent = "O interpretador travou: " + e;
+    return;
+  }
+  const ms = performance.now() - t0;
+
+  const saida = $("saida");
+  saida.className = "saida-exec" + (r.ok ? "" : " erro");
+  saida.textContent = r.texto.trimEnd() || (r.ok ? "(o programa não imprimiu nada)" : "erro sem mensagem");
+
+  $("k-ms").textContent = ms < 1 ? ms.toFixed(2) + " ms" : ms.toFixed(0) + " ms";
+  $("k-passos").textContent = r.passos.toLocaleString("pt-BR");
+}
+
+// --- Interface ------------------------------------------------------------
+
+function montarExemplos() {
+  const caixa = $("exemplos");
+  EXEMPLOS.forEach((ex, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = ex.nome;
+    if (ex.quebra) b.classList.add("quebra");
+    b.addEventListener("click", () => {
+      $("codigo").value = ex.codigo;
+      $("explica").innerHTML = ex.explica;
+      $("explica").className = "explica" + (ex.quebra ? " quebra" : "");
+      caixa.querySelectorAll("button").forEach((o) => o.classList.remove("ativo"));
+      b.classList.add("ativo");
+      rodar();
+    });
+    if (i === 0) b.classList.add("ativo");
+    caixa.appendChild(b);
+  });
+}
+
+$("rodar").addEventListener("click", rodar);
+$("codigo").addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); rodar(); }
+});
+
+montarExemplos();
+$("codigo").value = EXEMPLOS[0].codigo;
+$("explica").innerHTML = EXEMPLOS[0].explica;
+
+WebAssembly.instantiateStreaming(fetch("linguagem.wasm"), {})
+  .then((r) => {
+    wasm = r.instance;
+    $("rodar").disabled = false;
+    rodar();
+  })
+  .catch((e) => {
+    $("saida").className = "saida-exec erro";
+    $("saida").textContent = "Não consegui carregar o WebAssembly: " + e;
+    console.error(e);
+  });
+</script>
+</body>
+</html>
