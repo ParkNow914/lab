@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mandelbrot em WebAssembly Text — Laboratório Autark</title>
+<meta name="description" content="Fractal de Mandelbrot com zoom profundo, calculado por WebAssembly escrito à mão em formato texto — sem nenhuma linguagem de origem. 593 bytes.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  .tela-wrap { position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); background: #000; }
+  canvas#tela { width: 100%; height: auto; aspect-ratio: 8/5; display: block; cursor: zoom-in; touch-action: none; }
+  canvas#tela.saindo { cursor: zoom-out; }
+
+  .hud { position: absolute; top: 10px; left: 10px; display: flex; gap: 6px; flex-wrap: wrap; font-family: var(--font-mono); font-size: .68rem; pointer-events: none; }
+  .hud span { background: rgba(3,6,12,.78); border: 1px solid var(--border); color: var(--text-dim); padding: 3px 8px; border-radius: 6px; }
+  .hud span b { color: var(--accent); font-weight: 600; }
+
+  .controles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-top: 16px; }
+  .ctrl label { display: flex; justify-content: space-between; font-size: .78rem; color: var(--text-dim); margin-bottom: 6px; }
+  .ctrl label b { color: var(--accent); font-family: var(--font-mono); }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+  pre.wat {
+    background: rgba(0,0,0,.4); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; font-size: .72rem; line-height: 1.55; overflow: auto; margin: 0;
+    max-height: 460px; color: var(--text-muted);
+  }
+  pre.wat .c { color: var(--text-dim); font-style: italic; }
+  pre.wat .k { color: var(--cyan); }
+  pre.wat .n { color: var(--amber); }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+
+  .tamanhos { width: 100%; border-collapse: collapse; font-size: .8rem; margin-top: 8px; }
+  .tamanhos th, .tamanhos td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--border); }
+  .tamanhos th { font-family: var(--font-mono); font-size: .66rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); font-weight: 500; }
+  .tamanhos td { font-family: var(--font-mono); color: var(--text-muted); }
+  .tamanhos td.destaque { color: var(--accent); font-weight: 600; }
+  .tamanhos tr:last-child td { border-bottom: none; }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">WebAssembly (WAT)</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/wat-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Um fractal inteiro em 593 bytes</h1>
+  <p class="pitch">
+    Este Mandelbrot não foi compilado de C, de Rust nem de nada. Ele <strong>é</strong>
+    WebAssembly, escrito à mão em formato texto — pilha de operandos, saltos rotulados e
+    variáveis numeradas. É a forma final em que todas as outras linguagens deste
+    laboratório acabam. Clique para mergulhar.
+  </p>
+
+  <div class="meta">
+    <span>WebAssembly Text</span>
+    <span>sem linguagem de origem</span>
+    <span>montado com wat2wasm</span>
+    <span>593 bytes</span>
+    <span>roda no navegador</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    WAT é o assembly da web. Escrever o fractal direto em instruções de pilha mostra
+    entendimento do que o navegador realmente executa — e deixa visível o preço de cada
+    abstração: 593 bytes aqui, 17 KB no ray tracer em C, 2,4 MB no simulador em Go.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>O conjunto <span class="hint">clique para aproximar · shift+clique para afastar</span></h2>
+      <div class="tela-wrap">
+        <canvas id="tela" width="800" height="500"></canvas>
+        <div class="hud">
+          <span>zoom <b id="h-zoom">1×</b></span>
+          <span><b id="h-ms">—</b> ms</span>
+          <span><b id="h-iter">—</b> iterações</span>
+          <span id="h-pos">—</span>
+        </div>
+      </div>
+
+      <div class="controles">
+        <div class="ctrl">
+          <label for="r-iter">máximo de iterações <b id="v-iter">300</b></label>
+          <input type="range" id="r-iter" min="50" max="2000" step="50" value="300">
+        </div>
+        <div class="ctrl">
+          <label for="r-res">resolução <b id="v-res">800×500</b></label>
+          <input type="range" id="r-res" min="320" max="1000" step="80" value="800">
+        </div>
+      </div>
+
+      <div class="linha" style="margin-top:14px">
+        <button class="pri" id="voltar-inicio">Voltar ao início</button>
+        <button id="ponto1">Vale dos cavalos-marinhos</button>
+        <button id="ponto2">Espiral</button>
+      </div>
+
+      <p class="dica" style="margin-top:14px">
+        Ao aproximar muito, o desenho fica chapado: as <b>iterações</b> acabaram antes de o
+        ponto escapar. Suba o máximo e o detalhe reaparece — junto com o custo, que você vê
+        no contador.
+      </p>
+    </section>
+
+    <section class="painel">
+      <h2>O preço de cada abstração</h2>
+      <p class="dica">
+        Todas estas demos do laboratório fazem cálculo pesado e todas viram WebAssembly.
+        A diferença de tamanho não é o algoritmo — é o que cada linguagem precisa levar
+        junto para funcionar.
+      </p>
+      <table class="tamanhos">
+        <thead><tr><th>linguagem</th><th>tamanho</th><th>o que vai junto</th></tr></thead>
+        <tbody>
+          <tr><td class="destaque">WAT (escrito à mão)</td><td class="destaque">593 B</td><td>nada</td></tr>
+          <tr><td>C++</td><td>13 KB</td><td><code>std::vector</code> e matemática</td></tr>
+          <tr><td>C</td><td>17 KB</td><td><code>malloc</code> e matemática</td></tr>
+          <tr><td>Rust</td><td>121 KB</td><td>formatação, <code>String</code>, <code>HashMap</code></td></tr>
+          <tr><td>Go</td><td>2,4 MB</td><td>escalonador e coletor de lixo</td></tr>
+        </tbody>
+      </table>
+      <p class="dica" style="margin-top:14px">
+        Nenhum desses números é “ruim”. O Go carrega 2,4 MB porque entrega goroutines de
+        graça; o WAT tem 593 bytes porque <b>não entrega nada</b> — cada <code>if</code> e
+        cada laço são rótulos e saltos escritos à mão.
+      </p>
+    </section>
+
+    <section class="painel">
+      <h2>O código <span class="hint">é isto que o navegador executa</span></h2>
+      <p class="dica">
+        WebAssembly é uma máquina de pilha: <code>local.get</code> empurra um valor,
+        <code>f64.mul</code> tira dois e devolve um. Não há expressão <code>a*b+c</code> —
+        há uma ordem de empurrar e tirar. O laço é um <code>block</code> com um
+        <code>br_if</code> que sai dele.
+      </p>
+      <pre class="wat" id="fonte">carregando…</pre>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/wat-puro">Ler o mandelbrot.wat</a>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const tela = $("tela");
+const ctx = tela.getContext("2d", { alpha: false });
+
+let wasm = null, imagem = null;
+let vista = { x: -0.6, y: 0, zoom: 1 };
+let maxIter = 300;
+let largura = 800, altura = 500;
+
+const PONTOS = {
+  ponto1: { x: -0.7436447860, y: 0.1318252536, zoom: 8000, iter: 900 },
+  ponto2: { x: -0.1010963, y: 0.9562865, zoom: 4000, iter: 700 },
+};
+
+function ajustarTamanho(nova) {
+  largura = nova;
+  altura = Math.round(nova * 0.625);
+  tela.width = largura;
+  tela.height = altura;
+  imagem = ctx.createImageData(largura, altura);
+  $("v-res").textContent = `${largura}×${altura}`;
+}
+
+function desenhar() {
+  if (!wasm) return;
+
+  const t0 = performance.now();
+  const iteracoes = wasm.exports.render(largura, altura, vista.x, vista.y, vista.zoom, maxIter);
+  const ms = performance.now() - t0;
+
+  // A memoria do modulo e o proprio buffer de pixels: nao ha copia
+  // intermediaria nem estrutura, so bytes num indice.
+  const bytes = new Uint8Array(wasm.exports.memoria.buffer, 0, largura * altura * 4);
+  imagem.data.set(bytes);
+  ctx.putImageData(imagem, 0, 0);
+
+  const n = Number(iteracoes);
+  $("h-ms").textContent = ms.toFixed(0);
+  $("h-iter").textContent = n > 1e6 ? (n / 1e6).toFixed(1) + "M" : Math.round(n / 1000) + "k";
+  $("h-zoom").textContent = vista.zoom >= 1000
+    ? (vista.zoom / 1000).toFixed(1) + "k×"
+    : vista.zoom.toFixed(1) + "×";
+  $("h-pos").textContent = `${vista.x.toFixed(6)}, ${vista.y.toFixed(6)}`;
+}
+
+// --- Interação ------------------------------------------------------------
+
+tela.addEventListener("click", (e) => {
+  const r = tela.getBoundingClientRect();
+  const px = (e.clientX - r.left) * (largura / r.width);
+  const py = (e.clientY - r.top) * (altura / r.height);
+
+  // Converte o pixel clicado para coordenada do plano complexo, para o ponto
+  // sob o cursor continuar sob o cursor depois do zoom.
+  const escala = 3.5 / vista.zoom / largura;
+  vista.x += (px - largura / 2) * escala;
+  vista.y += (py - altura / 2) * escala;
+  vista.zoom *= e.shiftKey ? 0.4 : 2.5;
+  if (vista.zoom < 0.4) vista.zoom = 0.4;
+
+  desenhar();
+});
+
+tela.addEventListener("keydown", () => {});
+window.addEventListener("keydown", (e) => { if (e.key === "Shift") tela.classList.add("saindo"); });
+window.addEventListener("keyup", (e) => { if (e.key === "Shift") tela.classList.remove("saindo"); });
+
+$("r-iter").addEventListener("input", (e) => {
+  maxIter = Number(e.target.value);
+  $("v-iter").textContent = maxIter;
+  desenhar();
+});
+$("r-res").addEventListener("input", (e) => {
+  ajustarTamanho(Number(e.target.value));
+  desenhar();
+});
+
+$("voltar-inicio").addEventListener("click", () => {
+  vista = { x: -0.6, y: 0, zoom: 1 };
+  maxIter = 300;
+  $("r-iter").value = 300;
+  $("v-iter").textContent = 300;
+  desenhar();
+});
+
+for (const [id, p] of Object.entries(PONTOS)) {
+  $(id).addEventListener("click", () => {
+    vista = { x: p.x, y: p.y, zoom: p.zoom };
+    maxIter = p.iter;
+    $("r-iter").value = p.iter;
+    $("v-iter").textContent = p.iter;
+    desenhar();
+  });
+}
+
+// --- Fonte do WAT na tela -------------------------------------------------
+
+fetch("mandelbrot.wat")
+  .then((r) => r.text())
+  .then((txt) => {
+    const esc = txt.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    $("fonte").innerHTML = esc
+      .replace(/(;;.*)/g, '<span class="c">$1</span>')
+      .replace(/\b(module|func|param|result|local|memory|export|block|loop|if|then|else|end|br_if|br|call)\b/g, '<span class="k">$1</span>')
+      .replace(/\b(i32|i64|f64)\.([a-z_]+)/g, '<span class="n">$1.$2</span>');
+  })
+  .catch(() => { $("fonte").textContent = "(não consegui carregar o fonte)"; });
+
+// --- Início ---------------------------------------------------------------
+
+WebAssembly.instantiateStreaming(fetch("mandelbrot.wasm"), {})
+  .then((r) => {
+    wasm = r.instance;
+    ajustarTamanho(largura);
+    desenhar();
+  })
+  .catch((e) => {
+    $("h-ms").textContent = "erro";
+    console.error(e);
+  });
+</script>
+</body>
+</html>
