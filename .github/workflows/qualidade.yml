@@ -75,9 +75,11 @@ jobs:
           name: site
           path: dist
 
+      # npm ci usa as versoes travadas no package-lock, para a CI testar com o
+      # mesmo navegador que roda na maquina de quem desenvolve.
       - name: Instalar Playwright
         run: |
-          npm install --no-save playwright@1
+          npm ci
           npx playwright install --with-deps chromium
 
       # Abrir cada demo marcada como "live" num navegador de verdade e o unico
