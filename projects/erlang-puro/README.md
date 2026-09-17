@@ -69,11 +69,14 @@ por isso que sistema sério faz isso com `release_handler`, não na mão.
 ## Regravando
 
 ```bash
-cd gravacao
-cp ../contador_v1.erl ../contador_v2.erl .
-docker build -t lab-cast-erlang .
-docker run --rm -t -v "$PWD/..:/saida" lab-cast-erlang
+docker build -f gravacao/Dockerfile -t lab-cast-erlang .
+docker run --rm -t -v "$PWD:/saida" lab-cast-erlang
 ```
+
+O contexto de build é a raiz do projeto de propósito: assim a gravação usa
+exatamente os mesmos `.erl` que a página exibe. Com uma cópia dentro de
+`gravacao/`, os dois divergiriam em silêncio e a página passaria a explicar um
+código que não foi o que rodou.
 
 Duas coisas que custaram uma regravação cada, e que valem para qualquer
 gravação nova:
