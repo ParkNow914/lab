@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motor de template em PHP puro — Laboratório Autark</title>
+<meta name="description" content="O núcleo do Blade construído do zero em PHP 8: herança de layout, seções e escape automático — com o PHP de verdade rodando no navegador.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  textarea.editor { min-height: 210px; font-size: .78rem; line-height: 1.55; }
+  textarea#dados { min-height: 150px; }
+
+  .abas { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .abas button { font-size: .75rem; padding: 6px 11px; font-family: var(--font-mono); }
+  .abas button.ativo { background: var(--accent-soft); border-color: rgba(52,211,153,.32); color: var(--accent); }
+
+  pre.saida-php {
+    background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px; font-size: .75rem; line-height: 1.6; overflow: auto; margin: 0;
+    max-height: 320px; white-space: pre-wrap; color: var(--text-muted);
+  }
+  pre.saida-php.erro { border-color: rgba(251,113,133,.35); background: rgba(251,113,133,.06); color: var(--rose); }
+  pre.saida-php .php { color: var(--cyan); }
+  pre.saida-php .esc { color: var(--accent); }
+
+  .render {
+    background: #fff; color: #111; border-radius: 10px; padding: 18px 20px;
+    font-family: ui-sans-serif, system-ui, sans-serif; font-size: .88rem; line-height: 1.6;
+    max-height: 340px; overflow: auto;
+  }
+  .render h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  .render h2 { font-size: 1rem; margin: 16px 0 6px; }
+  .render ul { margin: 6px 0; padding-left: 20px; }
+  .render .rodape { margin-top: 16px; padding-top: 10px; border-top: 1px solid #ddd; font-size: .76rem; color: #666; }
+  .render .preco { font-weight: 700; color: #0a7f5a; }
+  .render table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: .82rem; }
+  .render th, .render td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #eee; }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica .r { color: var(--rose); font-weight: 600; }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+
+  .versao { font-family: var(--font-mono); font-size: .72rem; color: var(--text-dim); }
+  .versao b { color: var(--accent); }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">PHP</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/php-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Como o Blade realmente funciona</h1>
+  <p class="pitch">
+    Um motor de template não interpreta o template a cada requisição — ele
+    <strong>compila</strong> o template para PHP puro, e daí em diante quem roda é o
+    próprio PHP. Edite o template ao lado e veja, no painel do meio, o código PHP que
+    ele vira antes de qualquer coisa executar.
+  </p>
+
+  <div class="meta">
+    <span>PHP 8.4</span>
+    <span>php-wasm</span>
+    <span>tipos, enum, match</span>
+    <span>0 dependências</span>
+    <span>roda no navegador</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    PHP carrega fama de bagunça por causa de código dos anos 2000, não da linguagem
+    atual. Um motor de template limpo em PHP 8 — com tipos declarados, propriedade
+    promovida, <code>enum</code> e <code>throw</code> como expressão — desfaz isso. E
+    mostra o mecanismo por trás do framework mais contratado do mercado brasileiro.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>Exemplos</h2>
+      <div class="abas" id="exemplos"></div>
+      <p class="dica" id="explica">Baixando o PHP…</p>
+      <div class="linha">
+        <button class="pri" id="rodar" disabled>Compilar e renderizar</button>
+        <span class="versao" id="versao"></span>
+      </div>
+    </section>
+
+    <div class="duas">
+      <section class="painel">
+        <h2>Template <span class="hint">pode editar</span></h2>
+        <div class="abas" id="abas-tpl"></div>
+        <textarea class="editor" id="template" spellcheck="false" aria-label="Template"></textarea>
+
+        <h2 style="margin-top:18px">Dados <span class="hint">JSON</span></h2>
+        <textarea class="editor" id="dados" spellcheck="false" aria-label="Dados em JSON"></textarea>
+      </section>
+
+      <section class="painel">
+        <h2>PHP compilado <span class="hint">o que o Blade gera</span></h2>
+        <pre class="saida-php" id="compilado">—</pre>
+
+        <h2 style="margin-top:18px">HTML renderizado</h2>
+        <div class="render" id="render">—</div>
+      </section>
+    </div>
+
+    <section class="painel">
+      <h2>O motor</h2>
+      <p class="dica">
+        <code>{{ $nome }}</code> vira <code>&lt;?= e($nome) ?&gt;</code> em tempo de
+        compilação. Não há busca em texto na hora de renderizar — por isso template
+        compilado é rápido. E é por isso que <code>{{ }}</code> existe em vez de
+        <code>&lt;?= ?&gt;</code>: esquecer de escapar é o erro mais comum e mais caro em
+        template, e aqui é <b>impossível esquecer</b>. A versão sem escape,
+        <code>{!! !!}</code>, tem sintaxe feia de propósito.
+      </p>
+      <details class="lib">
+        <summary style="cursor:pointer;font-size:.82rem;color:var(--accent);margin-bottom:10px">Ver o motor inteiro (motor.php)</summary>
+        <pre class="saida-php" style="max-height:520px" id="fonte-motor">carregando…</pre>
+      </details>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/php-puro">Ler o motor.php</a>
+  </div>
+</div>
+
+<script type="module">
+import { PhpWeb } from "https://cdn.jsdelivr.net/npm/php-wasm@0.1.0/PhpWeb.mjs";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+// Os templates ficam aqui, e nao dentro de uma <script type="text/x-...">,
+// porque um deles precisa conter a string de um ataque com tag de script — que
+// fecharia o bloco no meio se estivesse no HTML.
+const LAYOUT = [
+  '<!doctype html>',
+  '<html lang="pt-BR">',
+  '<head><title>@yield("titulo", "Sem título")</title></head>',
+  '<body>',
+  '  <h1>@yield("titulo")</h1>',
+  '',
+  '  @yield("conteudo")',
+  '',
+  '  <div class="rodape">@yield("rodape", "Autark · gerado pelo motor")</div>',
+  '</body>',
+  '</html>',
+].join("\n");
+
+const EXEMPLOS = [
+  {
+    nome: "herança de layout",
+    explica: "O template <b>estende</b> um layout e preenche as seções dele. No PHP compilado, repare que o layout e o filho já viraram um arquivo só — a herança é resolvida em tempo de compilação, não de execução.",
+    templates: {
+      layout: LAYOUT,
+      pagina: [
+        '@extends("layout")',
+        '',
+        '@section("titulo", "Pedido #{{ $pedido }}")',
+        '',
+        '@section("conteudo")',
+        '  <h2>Itens</h2>',
+        '  <table>',
+        '    <tr><th>produto</th><th>qtd</th><th>preço</th></tr>',
+        '    @foreach ($itens as $item)',
+        '      <tr>',
+        '        <td>{{ $item["nome"] }}</td>',
+        '        <td>{{ $item["qtd"] }}</td>',
+        '        <td class="preco">R$ {{ number_format($item["preco"], 2, ",", ".") }}</td>',
+        '      </tr>',
+        '    @endforeach',
+        '  </table>',
+        '',
+        '  @if ($total > 500)',
+        '    <p>Frete grátis nesta compra.</p>',
+        '  @else',
+        '    <p>Faltam R$ {{ number_format(500 - $total, 2, ",", ".") }} para o frete grátis.</p>',
+        '  @endif',
+        '@endsection',
+      ].join("\n"),
+    },
+    dados: {
+      pedido: 4821,
+      total: 689.7,
+      itens: [
+        { nome: "Teclado mecânico", qtd: 1, preco: 349.9 },
+        { nome: "Monitor 27\"", qtd: 1, preco: 259.9 },
+        { nome: "Cabo USB-C", qtd: 2, preco: 39.95 },
+      ],
+    },
+  },
+  {
+    nome: "escape automático",
+    explica: 'O campo <b>nome</b> contém uma tag de script. Com <code>{{ }}</code> ela vira texto inofensivo; com <code>{!! !!}</code> entraria no HTML de verdade. Compare os dois no painel do meio e veja o <span class="r">risco</span> de usar o segundo sem pensar.',
+    templates: {
+      pagina: [
+        '<h1>Perfil</h1>',
+        '',
+        '<p><b>Escapado</b> com chaves duplas:</p>',
+        '<p>{{ $nome }}</p>',
+        '',
+        '<p><b>Cru</b> com chaves e exclamação:</p>',
+        '<p>{!! $nome !!}</p>',
+        '',
+        '<p>Aspas também são escapadas — importante dentro de atributo:</p>',
+        '<p title="{{ $apelido }}">passe o mouse aqui</p>',
+      ].join("\n"),
+    },
+    dados: {
+      nome: '<' + 'script>alert("invadido")<' + '/script>',
+      apelido: 'ele disse "oi" & saiu',
+    },
+  },
+  {
+    nome: "include e lista vazia",
+    explica: "<code>@include</code> costura o parcial no template antes de compilar. E <code>@empty</code> trata o caso da lista vazia — que é onde quase todo template feito às pressas mostra uma tabela sem linha nenhuma.",
+    templates: {
+      cabecalho: '<h1>{{ $loja }}</h1>\n<p>Catálogo atualizado</p>',
+      pagina: [
+        '@include("cabecalho")',
+        '',
+        '@empty($produtos)',
+        '  <p>Nenhum produto cadastrado ainda.</p>',
+        '@endempty',
+        '',
+        '<ul>',
+        '  @foreach ($produtos as $p)',
+        '    <li>{{ $p }}</li>',
+        '  @endforeach',
+        '</ul>',
+        '',
+        '{{-- Este comentário não aparece no HTML final --}}',
+        '<p>Total de itens: {{ count($produtos) }}</p>',
+      ].join("\n"),
+    },
+    dados: { loja: "Marvet Agropecuária", produtos: [] },
+  },
+];
+
+let php = null;
+let atual = EXEMPLOS[0];
+let templateAtual = "pagina";
+let fonteMotor = "";
+
+// --- Execução -------------------------------------------------------------
+
+function realcarPhp(codigo) {
+  return esc(codigo)
+    .replace(/(&lt;\?(?:php|=)|\?&gt;)/g, '<span class="php">$1</span>')
+    .replace(/\be\(/g, '<span class="esc">e(</span>');
+}
+
+async function rodar() {
+  if (!php) return;
+
+  let dados;
+  try {
+    dados = JSON.parse($("dados").value);
+  } catch (e) {
+    $("compilado").className = "saida-php erro";
+    $("compilado").textContent = "O JSON dos dados está inválido:\n" + e.message;
+    return;
+  }
+
+  atual.templates[templateAtual] = $("template").value;
+
+  // Entrada em base64: assim nenhuma aspa, barra invertida ou cifrão do
+  // template precisa ser escapado para caber dentro do PHP.
+  const b64 = (obj) => btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+
+  // O motor NAO entra aqui: ele ja foi declarado uma vez na inicializacao. O
+  // php-wasm mantem o estado do interpretador entre chamadas, entao reenviar as
+  // definicoes a cada rodada dava "Cannot redeclare function e()". Declarar uma
+  // vez e depois so usar tambem e como uma aplicacao real funciona.
+  const script = `<?php
+$templates = json_decode(base64_decode('${b64(atual.templates)}'), true);
+$dados     = json_decode(base64_decode('${b64(dados)}'), true);
+
+try {
+    $motor = new Motor($templates);
+    $saida = [
+        'compilado' => $motor->compilar('pagina'),
+        'html'      => $motor->render('pagina', $dados),
+    ];
+} catch (Throwable $e) {
+    $saida = ['erro' => get_class($e) . ': ' . $e->getMessage()];
+}
+
+echo "\\x02" . json_encode($saida, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\\x03";
+`;
+
+  let bruto = "";
+  const pegar = (e) => { bruto += e.detail; };
+  php.addEventListener("output", pegar);
+  php.addEventListener("error", pegar);
+
+  try {
+    await php.run(script);
+    await new Promise((r) => setTimeout(r, 60));
+  } finally {
+    php.removeEventListener("output", pegar);
+    php.removeEventListener("error", pegar);
+  }
+
+  // O PHP pode emitir aviso antes do JSON; os marcadores delimitam a resposta.
+  const ini = bruto.indexOf("\x02");
+  const fim = bruto.lastIndexOf("\x03");
+
+  if (ini < 0 || fim < 0) {
+    $("compilado").className = "saida-php erro";
+    $("compilado").textContent = "O PHP não devolveu resposta:\n" + bruto.slice(0, 600);
+    return;
+  }
+
+  let r;
+  try {
+    r = JSON.parse(bruto.slice(ini + 1, fim));
+  } catch (e) {
+    $("compilado").className = "saida-php erro";
+    $("compilado").textContent = "Resposta ilegível do PHP:\n" + bruto.slice(ini + 1, fim).slice(0, 600);
+    return;
+  }
+
+  if (r.erro) {
+    $("compilado").className = "saida-php erro";
+    $("compilado").textContent = r.erro;
+    $("render").textContent = "—";
+    return;
+  }
+
+  $("compilado").className = "saida-php";
+  $("compilado").innerHTML = realcarPhp(r.compilado);
+
+  // O HTML renderizado vai para um iframe com sandbox: se o exemplo do escape
+  // cru realmente injetar um script, ele nao roda nesta pagina.
+  const quadro = document.createElement("iframe");
+  quadro.setAttribute("sandbox", "");
+  quadro.style.cssText = "width:100%;border:0;min-height:300px;background:#fff;border-radius:10px";
+  quadro.srcdoc = `<style>
+    body{font:14px/1.6 ui-sans-serif,system-ui,sans-serif;color:#111;margin:16px}
+    h1{font-size:1.3rem;margin:0 0 4px} h2{font-size:1rem;margin:16px 0 6px}
+    table{width:100%;border-collapse:collapse;margin:8px 0;font-size:.9rem}
+    th,td{text-align:left;padding:5px 8px;border-bottom:1px solid #eee}
+    .rodape{margin-top:16px;padding-top:10px;border-top:1px solid #ddd;font-size:.8rem;color:#666}
+    .preco{font-weight:700;color:#0a7f5a}
+  </style>` + r.html;
+
+  $("render").replaceChildren(quadro);
+}
+
+// --- Interface ------------------------------------------------------------
+
+function montarAbasTemplate() {
+  const caixa = $("abas-tpl");
+  const nomes = Object.keys(atual.templates);
+  caixa.innerHTML = "";
+
+  for (const nome of nomes) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = nome + ".blade";
+    if (nome === templateAtual) b.classList.add("ativo");
+    b.addEventListener("click", () => {
+      atual.templates[templateAtual] = $("template").value;
+      templateAtual = nome;
+      $("template").value = atual.templates[nome];
+      caixa.querySelectorAll("button").forEach((o) => o.classList.remove("ativo"));
+      b.classList.add("ativo");
+    });
+    caixa.appendChild(b);
+  }
+}
+
+function aplicar(ex) {
+  atual = structuredClone(ex);
+  templateAtual = "pagina";
+  $("template").value = atual.templates.pagina;
+  $("dados").value = JSON.stringify(atual.dados, null, 2);
+  $("explica").innerHTML = ex.explica;
+  montarAbasTemplate();
+  rodar();
+}
+
+(function montarExemplos() {
+  const caixa = $("exemplos");
+  EXEMPLOS.forEach((ex, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = ex.nome;
+    b.addEventListener("click", () => {
+      caixa.querySelectorAll("button").forEach((o) => o.classList.remove("ativo"));
+      b.classList.add("ativo");
+      aplicar(ex);
+    });
+    if (i === 0) b.classList.add("ativo");
+    caixa.appendChild(b);
+  });
+})();
+
+$("rodar").addEventListener("click", rodar);
+
+// --- Início ---------------------------------------------------------------
+
+try {
+  fonteMotor = await (await fetch("motor.php")).text();
+  $("fonte-motor").innerHTML = realcarPhp(fonteMotor);
+
+  php = new PhpWeb();
+  await php.binary;
+
+  let versao = "";
+  const pegarVersao = (e) => { versao += e.detail; };
+  php.addEventListener("output", pegarVersao);
+  await php.run("<?php echo PHP_VERSION;");
+  await new Promise((r) => setTimeout(r, 60));
+  php.removeEventListener("output", pegarVersao);
+  $("versao").innerHTML = `PHP <b>${esc(versao.trim())}</b> compilado para WebAssembly`;
+
+  // Carrega o motor UMA vez. Daqui para a frente cada rodada so instancia e
+  // usa, como faria um autoload de verdade.
+  await php.run("<?php " + fonteMotor.replace(/^<\?php\s*/, ""));
+
+  $("rodar").disabled = false;
+  aplicar(EXEMPLOS[0]);
+} catch (e) {
+  $("explica").innerHTML = `<span style="color:var(--rose)">Não consegui carregar o PHP: ${esc(String(e.message ?? e))}</span>`;
+  console.error(e);
+}
+</script>
+</body>
+</html>
