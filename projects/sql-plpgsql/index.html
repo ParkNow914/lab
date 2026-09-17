@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Regra de negócio dentro do banco — Laboratório Autark</title>
+<meta name="description" content="PostgreSQL de verdade rodando no navegador: trigger, constraint e PL/pgSQL garantindo integridade que a aplicação não consegue furar.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  .contas { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .conta {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .conta .t { font-size: .82rem; color: var(--text-muted); }
+  .conta .s {
+    font-family: var(--font-display); font-size: 1.5rem; font-weight: 700;
+    color: var(--accent); letter-spacing: -.02em; margin-top: 4px;
+  }
+  .conta .n { font-family: var(--font-mono); font-size: .68rem; color: var(--text-dim); margin-top: 3px; }
+
+  .ataques { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ataques button { font-size: .78rem; }
+  .ataques button.mal { color: var(--rose); border-color: rgba(251,113,133,.3); }
+  .ataques button.mal:hover { background: rgba(251,113,133,.1); }
+
+  .resposta {
+    margin-top: 14px; padding: 13px 15px; border-radius: 10px;
+    font-family: var(--font-mono); font-size: .78rem; white-space: pre-wrap; line-height: 1.6;
+  }
+  .resposta.ok { background: var(--accent-soft); border: 1px solid rgba(52,211,153,.24); color: var(--accent); }
+  .resposta.bloqueado { background: rgba(251,113,133,.07); border: 1px solid rgba(251,113,133,.3); color: var(--rose); }
+
+  .extrato { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: .75rem; }
+  .extrato th { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--cyan); font-size: .66rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .extrato td { padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--text-muted); }
+  .extrato td.credito { color: var(--accent); }
+  .extrato td.debito { color: var(--amber); }
+  .extrato-wrap { max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; }
+
+  textarea#sql { min-height: 130px; font-size: .78rem; }
+
+  pre.ddl {
+    background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; font-size: .74rem; line-height: 1.6; overflow: auto; margin: 0;
+    max-height: 420px; color: var(--text-muted);
+  }
+  pre.ddl .k { color: var(--cyan); }
+  pre.ddl .c { color: var(--text-dim); font-style: italic; }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica .r { color: var(--rose); font-weight: 600; }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">PL/pgSQL</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/sql-plpgsql">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Tente furar a regra. O banco não deixa.</h1>
+  <p class="pitch">
+    Isto é PostgreSQL de verdade — compilado para WebAssembly, rodando na sua máquina.
+    A regra “saldo nunca fica negativo e o extrato sempre bate” <strong>não está na
+    aplicação</strong>: está dentro do banco, em <code>CHECK</code> e
+    <code>TRIGGER</code>. Use os botões abaixo para tentar quebrá-la, inclusive por
+    fora do sistema.
+  </p>
+
+  <div class="meta">
+    <span>PL/pgSQL</span>
+    <span>PGlite (Postgres em WASM)</span>
+    <span>trigger + constraint</span>
+    <span>livro-razão imutável</span>
+    <span>roda no navegador</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    Mover invariante crítica para o banco é decisão de arquitetura que muita gente nem
+    considera — e em sistema financeiro é o que salva. Aplicação tem bug, tem corrida,
+    tem script rodando direto no banco às 2h da manhã. A <code>constraint</code> não
+    tem pressa e não tem exceção.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>As contas</h2>
+      <div class="contas" id="contas"><div class="carregando">Iniciando o PostgreSQL…</div></div>
+    </section>
+
+    <div class="duas">
+
+      <section class="painel">
+        <h2>Operações <span class="hint">as legítimas passam</span></h2>
+        <div class="ataques">
+          <button data-acao="depositar">Depositar R$ 500 na conta 1</button>
+          <button data-acao="sacar">Sacar R$ 120 da conta 1</button>
+          <button data-acao="transferir">Transferir R$ 200 da 1 para a 2</button>
+        </div>
+
+        <h2 style="margin-top:22px">Tentativas de fraude <span class="hint">todas bloqueadas</span></h2>
+        <p class="dica">
+          Cada botão abaixo roda SQL <b>direto no banco</b>, sem passar por nenhuma camada
+          de aplicação — exatamente o que um script solto ou um bug faria.
+        </p>
+        <div class="ataques">
+          <button class="mal" data-acao="estourar">Sacar mais do que tem</button>
+          <button class="mal" data-acao="adulterar">Adulterar um lançamento antigo</button>
+          <button class="mal" data-acao="apagar">Apagar um lançamento</button>
+          <button class="mal" data-acao="saldo-direto">Escrever saldo de R$ 1 milhão</button>
+          <button class="mal" data-acao="valor-negativo">Lançar valor negativo</button>
+        </div>
+
+        <div id="resposta"></div>
+      </section>
+
+      <section class="painel">
+        <h2>Extrato <span class="hint">imutável</span></h2>
+        <div class="extrato-wrap">
+          <table class="extrato">
+            <thead><tr><th>#</th><th>conta</th><th>tipo</th><th>valor</th></tr></thead>
+            <tbody id="extrato"></tbody>
+          </table>
+        </div>
+
+        <h2 style="margin-top:22px">SQL livre <span class="hint">tente você mesmo</span></h2>
+        <label for="sql">rode o que quiser</label>
+        <textarea id="sql" spellcheck="false" aria-label="SQL livre">-- Tente burlar do seu jeito. Exemplos:
+UPDATE contas SET saldo = saldo + 10000 WHERE id = 1;
+-- DELETE FROM lancamentos WHERE id = 1;
+-- ALTER TABLE contas DROP CONSTRAINT contas_saldo_check;</textarea>
+        <div class="linha" style="margin-top:10px">
+          <button class="pri" id="rodar-sql" disabled>Executar</button>
+          <button id="reiniciar">Recomeçar do zero</button>
+        </div>
+      </section>
+
+    </div>
+
+    <section class="painel">
+      <h2>O que está dentro do banco</h2>
+      <p class="dica">
+        Três defesas, em camadas: a <b>constraint</b> recusa saldo negativo, um
+        <b>trigger</b> mantém o saldo em dia a cada lançamento, e outro
+        <b>trigger</b> confere se o saldo bate com a soma do extrato — o que torna
+        impossível escrever um saldo inventado, mesmo com <code>UPDATE</code> direto.
+      </p>
+      <p class="dica">
+        <b>Camada é isso.</b> Rode no SQL livre um
+        <code>ALTER TABLE contas DROP CONSTRAINT contas_saldo_check</code>: ele
+        <b>passa</b> — derrubar uma constraint é permitido. Agora tente escrever um saldo
+        inventado de novo. Continua <span class="r">recusado</span>, porque a conferência
+        contra o extrato é outro mecanismo. Uma defesa sozinha é ponto único de falha; a
+        graça está em não depender de nenhuma delas isoladamente.
+      </p>
+      <pre class="ddl" id="ddl">—</pre>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/sql-plpgsql">Ver o código</a>
+  </div>
+</div>
+
+<script type="module">
+import { PGlite } from "https://cdn.jsdelivr.net/npm/@electric-sql/pglite@0.2.17/dist/index.js";
+
+const $ = (id) => document.getElementById(id);
+
+const ESQUEMA = `
+CREATE TABLE contas (
+  id      serial PRIMARY KEY,
+  titular text NOT NULL,
+  -- Primeira defesa: nenhum caminho, nenhum bug, nenhuma corrida
+  -- consegue deixar esta coluna negativa.
+  saldo   numeric(14,2) NOT NULL DEFAULT 0 CHECK (saldo >= 0)
+);
+
+CREATE TABLE lancamentos (
+  id        serial PRIMARY KEY,
+  conta_id  int  NOT NULL REFERENCES contas(id),
+  tipo      text NOT NULL CHECK (tipo IN ('credito','debito')),
+  valor     numeric(14,2) NOT NULL CHECK (valor > 0),
+  descricao text NOT NULL DEFAULT '',
+  criado_em timestamptz NOT NULL DEFAULT now()
+);
+
+-- Segunda defesa: o saldo nao e escrito pela aplicacao. Ele e consequencia
+-- do lancamento, aplicada pelo proprio banco.
+CREATE FUNCTION aplicar_lancamento() RETURNS trigger AS $$
+BEGIN
+  UPDATE contas
+     SET saldo = saldo + CASE WHEN NEW.tipo = 'credito' THEN NEW.valor ELSE -NEW.valor END
+   WHERE id = NEW.conta_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_aplicar
+AFTER INSERT ON lancamentos
+FOR EACH ROW EXECUTE FUNCTION aplicar_lancamento();
+
+-- Terceira defesa: o saldo tem de bater com a soma do extrato, SEMPRE.
+-- E isto que torna inutil um UPDATE direto na coluna saldo.
+CREATE FUNCTION saldo_bate_com_extrato() RETURNS trigger AS $$
+DECLARE
+  esperado numeric(14,2);
+BEGIN
+  SELECT COALESCE(SUM(CASE WHEN tipo = 'credito' THEN valor ELSE -valor END), 0)
+    INTO esperado
+    FROM lancamentos
+   WHERE conta_id = NEW.id;
+
+  IF NEW.saldo <> esperado THEN
+    RAISE EXCEPTION
+      'saldo % nao confere com o extrato (a soma dos lancamentos da %)',
+      NEW.saldo, esperado;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_conferir
+BEFORE UPDATE OF saldo ON contas
+FOR EACH ROW EXECUTE FUNCTION saldo_bate_com_extrato();
+
+-- Livro-razao e historico: nao se corrige, se estorna.
+CREATE FUNCTION lancamento_imutavel() RETURNS trigger AS $$
+BEGIN
+  RAISE EXCEPTION
+    'lancamento % nao pode ser alterado nem apagado; registre um estorno',
+    OLD.id;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_imutavel
+BEFORE UPDATE OR DELETE ON lancamentos
+FOR EACH ROW EXECUTE FUNCTION lancamento_imutavel();
+
+INSERT INTO contas (titular) VALUES ('Alisson Santos'), ('Loja Miguel');
+INSERT INTO lancamentos (conta_id, tipo, valor, descricao) VALUES
+  (1, 'credito', 1500.00, 'saldo inicial'),
+  (2, 'credito',  800.00, 'saldo inicial');
+`;
+
+const ACOES = {
+  depositar: {
+    rotulo: "depósito de R$ 500",
+    sql: "INSERT INTO lancamentos (conta_id, tipo, valor, descricao) VALUES (1, 'credito', 500.00, 'depósito');",
+  },
+  sacar: {
+    rotulo: "saque de R$ 120",
+    sql: "INSERT INTO lancamentos (conta_id, tipo, valor, descricao) VALUES (1, 'debito', 120.00, 'saque');",
+  },
+  transferir: {
+    rotulo: "transferência de R$ 200",
+    // As duas pernas numa transacao: ou as duas entram, ou nenhuma.
+    sql: `BEGIN;
+INSERT INTO lancamentos (conta_id, tipo, valor, descricao) VALUES (1, 'debito',  200.00, 'transferência enviada');
+INSERT INTO lancamentos (conta_id, tipo, valor, descricao) VALUES (2, 'credito', 200.00, 'transferência recebida');
+COMMIT;`,
+  },
+  estourar: {
+    rotulo: "saque de R$ 999.999 (mais do que existe)",
+    sql: "INSERT INTO lancamentos (conta_id, tipo, valor, descricao) VALUES (1, 'debito', 999999.00, 'saque absurdo');",
+  },
+  adulterar: {
+    rotulo: "UPDATE direto num lançamento já registrado",
+    sql: "UPDATE lancamentos SET valor = 99999.00 WHERE id = 1;",
+  },
+  apagar: {
+    rotulo: "DELETE de um lançamento",
+    sql: "DELETE FROM lancamentos WHERE id = 1;",
+  },
+  "saldo-direto": {
+    rotulo: "UPDATE escrevendo saldo de R$ 1.000.000",
+    sql: "UPDATE contas SET saldo = 1000000.00 WHERE id = 1;",
+  },
+  "valor-negativo": {
+    rotulo: "lançamento com valor negativo",
+    sql: "INSERT INTO lancamentos (conta_id, tipo, valor, descricao) VALUES (1, 'credito', -5000.00, 'valor negativo');",
+  },
+};
+
+let db = null;
+
+const dinheiro = (n) =>
+  Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+async function atualizarTela() {
+  const contas = await db.query("SELECT id, titular, saldo FROM contas ORDER BY id");
+  $("contas").innerHTML = contas.rows.map((c) => `
+    <div class="conta">
+      <div class="t">${esc(c.titular)}</div>
+      <div class="s">${dinheiro(c.saldo)}</div>
+      <div class="n">conta #${c.id}</div>
+    </div>`).join("");
+
+  const ext = await db.query(
+    "SELECT id, conta_id, tipo, valor, descricao FROM lancamentos ORDER BY id DESC LIMIT 40");
+  $("extrato").innerHTML = ext.rows.map((l) => `
+    <tr>
+      <td>${l.id}</td>
+      <td>#${l.conta_id}</td>
+      <td class="${l.tipo}">${l.tipo}</td>
+      <td class="${l.tipo}">${l.tipo === "credito" ? "+" : "−"} ${dinheiro(l.valor)}</td>
+    </tr>`).join("");
+}
+
+function responder(classe, texto) {
+  $("resposta").innerHTML = `<div class="resposta ${classe}">${esc(texto)}</div>`;
+}
+
+async function rodar(sql, rotulo, mensagemOk) {
+  try {
+    await db.exec(sql);
+    await atualizarTela();
+    responder("ok", `${rotulo}\n\n${mensagemOk ?? "Aceito. O saldo foi recalculado pelo trigger."}`);
+  } catch (e) {
+    // Depois de um erro dentro de BEGIN, a sessao fica em estado abortado ate
+    // alguem dar ROLLBACK. Sem isto, TUDO daqui para a frente falharia com
+    // "current transaction is aborted".
+    try { await db.exec("ROLLBACK;"); } catch { /* nao havia transacao aberta */ }
+
+    await atualizarTela();
+    const msg = String(e.message ?? e).trim();
+    responder("bloqueado", `${rotulo}\n\nRECUSADO PELO BANCO:\n${msg}`);
+  }
+}
+
+// --- Interface ------------------------------------------------------------
+
+document.querySelectorAll("[data-acao]").forEach((b) => {
+  b.addEventListener("click", () => {
+    const a = ACOES[b.dataset.acao];
+    if (a && db) rodar(a.sql, a.rotulo);
+  });
+});
+
+$("rodar-sql").addEventListener("click", () => {
+  // Mensagem generica: SQL livre pode ser DDL, e dizer "o saldo foi recalculado"
+  // depois de um ALTER TABLE seria mentira.
+  rodar($("sql").value, "SQL livre", "Executado sem erro.");
+});
+
+$("reiniciar").addEventListener("click", async () => {
+  $("rodar-sql").disabled = true;
+  responder("ok", "Recriando o banco…");
+  db = new PGlite();
+  await db.exec(ESQUEMA);
+  await atualizarTela();
+  $("rodar-sql").disabled = false;
+  responder("ok", "Banco recriado do zero.");
+});
+
+// O DDL mostrado e literalmente o que foi executado: uma copia divergiria.
+$("ddl").innerHTML = esc(ESQUEMA.trim())
+  .replace(/(--.*)/g, '<span class="c">$1</span>')
+  .replace(/\b(CREATE|TABLE|FUNCTION|TRIGGER|RETURNS|BEGIN|END|LANGUAGE|AFTER|BEFORE|INSERT|UPDATE|DELETE|ON|FOR|EACH|ROW|EXECUTE|SELECT|FROM|WHERE|INTO|SET|VALUES|CHECK|NOT|NULL|DEFAULT|PRIMARY|KEY|REFERENCES|IF|THEN|RAISE|EXCEPTION|DECLARE|CASE|WHEN|ELSE|COALESCE|SUM|OF)\b/g,
+    '<span class="k">$1</span>');
+
+try {
+  db = new PGlite();
+  await db.exec(ESQUEMA);
+  await atualizarTela();
+  $("rodar-sql").disabled = false;
+  responder("ok", "Banco pronto. Tente quebrar as regras nos botões vermelhos.");
+} catch (e) {
+  $("contas").innerHTML =
+    `<div class="resposta bloqueado">Não consegui iniciar o PostgreSQL: ${esc(String(e.message ?? e))}</div>`;
+  console.error(e);
+}
+</script>
+</body>
+</html>
