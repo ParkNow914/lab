@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Labirinto e A* em Nim — Laboratório Autark</title>
+<meta name="description" content="Labirinto gerado e resolvido em Nim compilado para JavaScript, mostrando em número o que a heurística do A* economiza contra o Dijkstra.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  .telas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 780px) { .telas { grid-template-columns: 1fr; } }
+
+  .tela-box { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #02040a; }
+  .tela-box h3 {
+    margin: 0; padding: 10px 14px; font-family: var(--font-mono); font-size: .74rem;
+    color: var(--text-muted); border-bottom: 1px solid var(--border); font-weight: 500;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .tela-box h3 b { font-weight: 600; }
+  .tela-box.a-estrela h3 b { color: var(--accent); }
+  .tela-box.dijkstra h3 b { color: var(--amber); }
+  canvas { width: 100%; height: auto; display: block; image-rendering: pixelated; }
+
+  .num-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 16px; }
+  .num-grid .k { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .num-grid .k .n { font-family: var(--font-mono); font-size: 1.25rem; line-height: 1.2; }
+  .num-grid .k .n.bom { color: var(--accent); }
+  .num-grid .k .n.medio { color: var(--amber); }
+  .num-grid .k .l { font-size: .71rem; color: var(--text-dim); margin-top: 4px; }
+
+  .controles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-top: 16px; }
+  .ctrl label { display: flex; justify-content: space-between; font-size: .78rem; color: var(--text-dim); margin-bottom: 6px; }
+  .ctrl label b { color: var(--accent); font-family: var(--font-mono); }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+  .legenda { display: flex; gap: 16px; flex-wrap: wrap; font-size: .76rem; color: var(--text-dim); margin-top: 12px; }
+  .legenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .legenda i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+
+  pre.fonte-nim {
+    background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; font-size: .74rem; line-height: 1.6; overflow: auto; margin: 0;
+    max-height: 340px; color: var(--text-muted); white-space: pre;
+  }
+  pre.fonte-nim .c { color: var(--text-dim); font-style: italic; }
+  pre.fonte-nim .k { color: var(--cyan); }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">Nim</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/nim-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>A mesma busca, com e sem palpite</h1>
+  <p class="pitch">
+    Os dois lados resolvem o mesmo labirinto com o <strong>mesmo algoritmo</strong>. A
+    única diferença é uma parcela na conta de prioridade: o A* soma uma estimativa de
+    quanto falta até o destino, o Dijkstra não soma nada. Veja quantas células cada um
+    precisou visitar.
+  </p>
+
+  <div class="meta">
+    <span>Nim</span>
+    <span>backend JavaScript nativo</span>
+    <span>A* e Dijkstra</span>
+    <span>47 KB de JS</span>
+    <span>0 dependências</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    Nim tem sintaxe de Python e compila para C nativo ou para JavaScript — o mesmo
+    arquivo, sem uma linha condicional. Um algoritmo de busca mostra as duas coisas ao
+    mesmo tempo: legibilidade de linguagem de script e um resultado que dá para medir.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>O labirinto <span class="hint">gerado e resolvido pelo Nim</span></h2>
+
+      <div class="telas">
+        <div class="tela-box a-estrela">
+          <h3>A* <span>visitou <b id="n-astar">—</b> células</span></h3>
+          <canvas id="tela-astar"></canvas>
+        </div>
+        <div class="tela-box dijkstra">
+          <h3>Dijkstra <span>visitou <b id="n-dijkstra">—</b> células</span></h3>
+          <canvas id="tela-dijkstra"></canvas>
+        </div>
+      </div>
+
+      <div class="legenda">
+        <span><i style="background:#0b1120;border:1px solid #1c2536"></i> corredor</span>
+        <span><i style="background:#22d3ee;opacity:.35"></i> visitado pela busca</span>
+        <span><i style="background:#34d399"></i> caminho encontrado</span>
+        <span><i style="background:#fbbf24"></i> início e destino</span>
+      </div>
+
+      <div class="num-grid">
+        <div class="k"><div class="n bom" id="k-caminho">—</div><div class="l">passos do caminho (igual nos dois)</div></div>
+        <div class="k"><div class="n bom" id="k-astar">—</div><div class="l">células visitadas pelo A*</div></div>
+        <div class="k"><div class="n medio" id="k-dijkstra">—</div><div class="l">células visitadas pelo Dijkstra</div></div>
+        <div class="k"><div class="n bom" id="k-economia">—</div><div class="l">economia da heurística</div></div>
+      </div>
+
+      <div class="controles">
+        <div class="ctrl">
+          <label for="r-tam">tamanho <b id="v-tam">41×31</b></label>
+          <input type="range" id="r-tam" min="21" max="81" step="10" value="41">
+        </div>
+        <div class="ctrl">
+          <label for="r-semente">labirinto <b id="v-semente">7</b></label>
+          <input type="range" id="r-semente" min="1" max="60" step="1" value="7">
+        </div>
+        <div class="ctrl">
+          <label for="r-abertura">corredores extras <b id="v-abertura">0%</b></label>
+          <input type="range" id="r-abertura" min="0" max="40" step="5" value="0">
+        </div>
+      </div>
+
+      <div class="linha" style="margin-top:14px">
+        <button class="pri" id="sortear">Sortear outro labirinto</button>
+      </div>
+    </section>
+
+    <section class="painel">
+      <h2>A linha que muda tudo</h2>
+      <p class="dica">
+        A* e Dijkstra são o <b>mesmo</b> algoritmo. O que separa os dois é somar, ou não,
+        uma estimativa do que falta — aqui a distância de Manhattan até o destino. O
+        Dijkstra espalha em círculo porque só sabe de onde veio; o A* puxa na direção
+        certa porque também tem um palpite de para onde vai.
+      </p>
+      <pre class="fonte-nim" id="fonte">carregando…</pre>
+      <p class="dica" style="margin-top:14px">
+        A estimativa precisa ser <b>otimista</b> — nunca maior que a distância real. Se
+        exagerar, o A* fica rápido mas pode devolver um caminho que não é o mais curto.
+        Manhattan num labirinto de grade nunca exagera, por isso é segura aqui.
+      </p>
+      <p class="dica" style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border)">
+        <b>Suba os “corredores extras” e veja a economia disparar.</b> Com 0%, o labirinto
+        é <em>perfeito</em>: existe um único caminho entre dois pontos quaisquer, e a
+        heurística quase não ajuda — não há rota alternativa para descartar. Cada parede
+        derrubada cria caminhos concorrentes, e é aí que saber “para que lado fica o
+        destino” passa a valer muito. A* não é magicamente melhor: ele é melhor
+        <b>quando há escolha</b>.
+      </p>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/nim-puro">Ler o labirinto.nim</a>
+  </div>
+</div>
+
+<script src="labirinto.js" defer></script>
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+const CELULA = 7;
+
+function paraArray(assoc, tamanho) {
+  // O Nim entrega JsAssoc, que em JavaScript é um objeto com chaves numéricas.
+  const out = new Array(tamanho);
+  for (let i = 0; i < tamanho; i++) out[i] = assoc[i];
+  return out;
+}
+
+function desenhar(canvas, r, mostrarVisitados) {
+  const L = r.largura, A = r.altura;
+  canvas.width = L * CELULA;
+  canvas.height = A * CELULA;
+  const ctx = canvas.getContext("2d");
+
+  const paredes = paraArray(r.paredes, L * A);
+
+  ctx.fillStyle = "#02040a";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Corredores
+  ctx.fillStyle = "#0b1120";
+  for (let i = 0; i < L * A; i++) {
+    if (paredes[i]) continue;
+    ctx.fillRect((i % L) * CELULA, Math.floor(i / L) * CELULA, CELULA, CELULA);
+  }
+
+  // Células que a busca precisou abrir
+  if (mostrarVisitados) {
+    ctx.fillStyle = "rgba(34,211,238,.35)";
+    for (let k = 0; k < r.passosVisitados; k++) {
+      const i = r.visitados[k];
+      ctx.fillRect((i % L) * CELULA, Math.floor(i / L) * CELULA, CELULA, CELULA);
+    }
+  }
+
+  // Caminho
+  ctx.fillStyle = "#34d399";
+  for (let k = 0; k < r.passosCaminho; k++) {
+    const i = r.caminho[k];
+    ctx.fillRect((i % L) * CELULA, Math.floor(i / L) * CELULA, CELULA, CELULA);
+  }
+
+  // Início e destino
+  ctx.fillStyle = "#fbbf24";
+  if (r.passosCaminho > 0) {
+    for (const i of [r.caminho[0], r.caminho[r.passosCaminho - 1]]) {
+      ctx.fillRect((i % L) * CELULA, Math.floor(i / L) * CELULA, CELULA, CELULA);
+    }
+  }
+}
+
+function resolver() {
+  const largura = Number($("r-tam").value);
+  // Altura em proporção, sempre ímpar: o gerador só abre células ímpares.
+  const altura = (Math.round(largura * 0.75) | 1);
+  const semente = Number($("r-semente").value);
+  const abertura = Number($("r-abertura").value);
+
+  $("v-tam").textContent = `${largura}×${altura}`;
+  $("v-semente").textContent = semente;
+  $("v-abertura").textContent = abertura + "%";
+
+  const comA = nimResolver(largura, altura, semente, abertura, true);
+  const comD = nimResolver(largura, altura, semente, abertura, false);
+
+  desenhar($("tela-astar"), comA, true);
+  desenhar($("tela-dijkstra"), comD, true);
+
+  $("n-astar").textContent = comA.passosVisitados.toLocaleString("pt-BR");
+  $("n-dijkstra").textContent = comD.passosVisitados.toLocaleString("pt-BR");
+
+  $("k-caminho").textContent = comA.passosCaminho.toLocaleString("pt-BR");
+  $("k-astar").textContent = comA.passosVisitados.toLocaleString("pt-BR");
+  $("k-dijkstra").textContent = comD.passosVisitados.toLocaleString("pt-BR");
+
+  const economia = comD.passosVisitados > 0
+    ? Math.round(100 * (1 - comA.passosVisitados / comD.passosVisitados))
+    : 0;
+  $("k-economia").textContent = economia + "% menos";
+
+  // Se o caminho divergir, a heurística não seria admissível — vale conferir.
+  if (comA.passosCaminho !== comD.passosCaminho) {
+    $("k-caminho").textContent = `${comA.passosCaminho} vs ${comD.passosCaminho}`;
+    $("k-caminho").className = "n medio";
+  } else {
+    $("k-caminho").className = "n bom";
+  }
+}
+
+// --- Interface ------------------------------------------------------------
+
+$("r-tam").addEventListener("input", resolver);
+$("r-semente").addEventListener("input", resolver);
+$("r-abertura").addEventListener("input", resolver);
+$("sortear").addEventListener("click", () => {
+  $("r-semente").value = 1 + Math.floor(Math.random() * 60);
+  resolver();
+});
+
+// --- Início ---------------------------------------------------------------
+
+(async () => {
+  try {
+    const fonte = await (await fetch("labirinto.nim")).text();
+    const ini = fonte.indexOf("## Busca com fronteira");
+    const fim = fonte.indexOf("# --------------------------------------------------------------- ponte");
+    $("fonte").innerHTML = esc(fonte.slice(ini, fim).trimEnd())
+      .replace(/(^|\n)(\s*)(#.*)/g, '$1$2<span class="c">$3</span>')
+      .replace(/(^|\n)(\s*)(##.*)/g, '$1$2<span class="c">$3</span>')
+      .replace(/\b(proc|var|let|const|if|else|elif|for|while|return|result|type|object|tuple|seq|int|bool|not|and|or|in|continue|discard)\b/g, '<span class="k">$1</span>');
+  } catch { /* o fonte é extra; a demo funciona sem ele */ }
+
+  for (let i = 0; i < 80; i++) {
+    if (typeof nimResolver === "function") break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+
+  if (typeof nimResolver !== "function") {
+    $("k-caminho").textContent = "erro";
+    return;
+  }
+
+  resolver();
+})();
+</script>
+</body>
+</html>
