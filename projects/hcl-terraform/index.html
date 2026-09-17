@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Infraestrutura como código: o plano antes do estrago — Laboratório Autark</title>
+<meta name="description" content="HCL analisado de verdade: grafo de dependência montado a partir das referências e um terraform plan mostrando o que seria criado, alterado ou destruído.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  textarea#hcl { min-height: 420px; font-size: .78rem; line-height: 1.55; }
+
+  .exemplos { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .exemplos button { font-size: .75rem; padding: 6px 11px; font-family: var(--font-mono); }
+  .exemplos button.ativo { background: var(--accent-soft); border-color: rgba(52,211,153,.32); color: var(--accent); }
+
+  .plano { margin: 0; padding: 0; list-style: none; font-family: var(--font-mono); font-size: .78rem; }
+  .plano li { padding: 9px 12px; border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border); }
+  .plano li.criar    { background: rgba(52,211,153,.07);  border-color: rgba(52,211,153,.3); }
+  .plano li.alterar  { background: rgba(251,191,36,.07);  border-color: rgba(251,191,36,.3); }
+  .plano li.destruir { background: rgba(251,113,133,.07); border-color: rgba(251,113,133,.32); }
+  .plano .sinal { font-weight: 700; margin-right: 8px; }
+  .plano li.criar .sinal    { color: var(--accent); }
+  .plano li.alterar .sinal  { color: var(--amber); }
+  .plano li.destruir .sinal { color: var(--rose); }
+  .plano .end { color: var(--text); }
+  .plano .campos { margin: 7px 0 0 20px; color: var(--text-dim); font-size: .73rem; line-height: 1.7; }
+  .plano .campos .de { color: var(--rose); }
+  .plano .campos .para { color: var(--accent); }
+
+  .resumo {
+    font-family: var(--font-mono); font-size: .8rem; padding: 11px 14px;
+    border-radius: 9px; background: var(--surface); border: 1px solid var(--border);
+    margin-bottom: 14px; color: var(--text-muted);
+  }
+  .resumo b.c { color: var(--accent); }
+  .resumo b.a { color: var(--amber); }
+  .resumo b.d { color: var(--rose); }
+
+  svg#grafo { width: 100%; height: auto; display: block; background: rgba(0,0,0,.25); border-radius: 10px; border: 1px solid var(--border); }
+  svg#grafo text { font-family: var(--font-mono); font-size: 10px; }
+
+  .erro-hcl {
+    padding: 11px 13px; border-radius: 9px; background: rgba(251,113,133,.07);
+    border: 1px solid rgba(251,113,133,.3); color: var(--rose);
+    font-family: var(--font-mono); font-size: .76rem; margin-bottom: 12px; white-space: pre-wrap;
+  }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica .r { color: var(--rose); font-weight: 600; }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+
+  .estado { font-family: var(--font-mono); font-size: .73rem; color: var(--text-dim); }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">HCL</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/hcl-terraform">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Ver o estrago antes de causá-lo</h1>
+  <p class="pitch">
+    Escreva HCL à esquerda. Ele é <strong>analisado de verdade</strong>: o grafo de
+    dependência sai das referências que você escreveu, e o plano compara a configuração
+    com o estado atual. Aplique, depois mude alguma coisa e planeje de novo — é o ciclo
+    inteiro do Terraform, sem nuvem nenhuma envolvida.
+  </p>
+
+  <div class="meta">
+    <span>HCL</span>
+    <span>parser escrito do zero</span>
+    <span>grafo de dependência</span>
+    <span>plan / apply</span>
+    <span>0 dependências</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    É assim que eu provisiono infraestrutura de cliente. O <code>plan</code> antes do
+    <code>apply</code> é a rede de segurança que evita derrubar produção — e a parte
+    que mais gente ignora é que a dependência <b>não é declarada</b>: ela é deduzida de
+    quem referencia quem. Escrever <code>${aws_vpc.principal.id}</code> já é dizer
+    “isto vem depois daquilo”.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>Cenários</h2>
+      <div class="exemplos" id="exemplos"></div>
+      <p class="dica" id="explica">—</p>
+    </section>
+
+    <div class="duas">
+
+      <section class="painel">
+        <h2>main.tf <span class="hint">edite à vontade</span></h2>
+        <textarea id="hcl" spellcheck="false" aria-label="Configuração HCL"></textarea>
+        <div class="linha" style="margin-top:12px">
+          <button class="pri" id="planejar">terraform plan</button>
+          <button id="aplicar">terraform apply</button>
+          <button id="destruir">destroy</button>
+        </div>
+        <p class="estado" id="estado" style="margin-top:10px">estado: vazio</p>
+      </section>
+
+      <section class="painel">
+        <h2>O plano <span class="hint">nada é executado</span></h2>
+        <div id="erros"></div>
+        <div class="resumo" id="resumo">—</div>
+        <ul class="plano" id="plano"></ul>
+      </section>
+
+    </div>
+
+    <section class="painel">
+      <h2>O grafo de dependência <span class="hint">deduzido das referências</span></h2>
+      <p class="dica">
+        Cada coluna é uma <b>camada</b>: tudo dentro dela pode ser criado ao mesmo tempo,
+        porque nada ali depende de nada ali. É assim que o Terraform paraleliza — e é por
+        isso que dependência circular é erro fatal, não aviso: não existe ordem possível.
+      </p>
+      <svg id="grafo" viewBox="0 0 900 360" role="img" aria-label="Grafo de dependência dos recursos"></svg>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/hcl-terraform">Ler o hcl.js</a>
+  </div>
+</div>
+
+<script type="module">
+import { analisar, extrairRecursos, camadas, planejar } from "./hcl.js";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+const BASE = `variable "ambiente" {
+  default = "producao"
+}
+
+resource "aws_vpc" "principal" {
+  cidr_block = "10.0.0.0/16"
+  nome       = "vpc-\${var.ambiente}"
+}
+
+resource "aws_subnet" "publica" {
+  vpc_id     = "\${aws_vpc.principal.id}"
+  cidr_block = "10.0.1.0/24"
+  zona       = "sa-east-1a"
+}
+
+resource "aws_subnet" "privada" {
+  vpc_id     = "\${aws_vpc.principal.id}"
+  cidr_block = "10.0.2.0/24"
+  zona       = "sa-east-1b"
+}
+
+resource "aws_security_group" "web" {
+  vpc_id = "\${aws_vpc.principal.id}"
+  nome   = "sg-web"
+
+  ingresso {
+    porta  = 443
+    origem = "0.0.0.0/0"
+  }
+}
+
+resource "aws_db_instance" "postgres" {
+  subnet_id = "\${aws_subnet.privada.id}"
+  motor     = "postgres"
+  versao    = "16.3"
+  tamanho   = "db.t4g.micro"
+}
+
+resource "aws_instance" "api" {
+  subnet_id   = "\${aws_subnet.publica.id}"
+  seguranca   = "\${aws_security_group.web.id}"
+  banco       = "\${aws_db_instance.postgres.endpoint}"
+  tipo        = "t4g.small"
+  quantidade  = 2
+}
+
+resource "aws_lb" "entrada" {
+  subnet_id = "\${aws_subnet.publica.id}"
+  alvo      = "\${aws_instance.api.id}"
+  esquema   = "internet-facing"
+}
+`;
+
+const CENARIOS = [
+  {
+    nome: "1. do zero",
+    explica: "Estado vazio: tudo é criação. Repare no grafo — a VPC vem primeiro porque todo o resto a referencia, e as duas subnets podem nascer ao mesmo tempo.",
+    hcl: BASE,
+    estado: {},
+  },
+  {
+    nome: "2. mudança pequena",
+    explica: "Já aplicado, e agora a API sobe de 2 para 4 instâncias e muda de tipo. O plano mostra <b>só o que muda</b>, campo a campo — nada mais é tocado.",
+    hcl: BASE.replace('tipo        = "t4g.small"', 'tipo        = "t4g.medium"')
+             .replace("quantidade  = 2", "quantidade  = 4"),
+    aplicarBase: true,
+  },
+  {
+    nome: "3. remoção perigosa",
+    explica: 'O banco foi apagado do arquivo. O plano avisa <span class="r">destruir</span> — e o recurso que dependia dele aparece alterado. É exatamente o tipo de coisa que passa despercebida em <code>apply</code> direto.',
+    hcl: BASE.replace(/resource "aws_db_instance" "postgres" \{[\s\S]*?\n\}\n\n/, "")
+             .replace('  banco       = "${aws_db_instance.postgres.endpoint}"\n', ""),
+    aplicarBase: true,
+  },
+  {
+    nome: "4. ciclo",
+    explica: 'A VPC passou a referenciar a subnet, que já referencia a VPC. Não existe ordem possível, então o grafo não fecha — e isso é <span class="r">erro fatal</span>, não aviso.',
+    hcl: BASE.replace('  cidr_block = "10.0.0.0/16"', '  cidr_block = "10.0.0.0/16"\n  subnet_padrao = "${aws_subnet.publica.id}"'),
+    estado: {},
+  },
+];
+
+let estado = {};
+
+// --- Plano ----------------------------------------------------------------
+
+function recursosAtuais() {
+  const { raiz, erros } = analisar($("hcl").value);
+  const { recursos } = extrairRecursos(raiz);
+  return { recursos, erros };
+}
+
+function planejarAgora() {
+  const { recursos, erros } = recursosAtuais();
+
+  $("erros").innerHTML = erros.length
+    ? `<div class="erro-hcl">${erros.map((e) => `linha ${e.linha}: ${esc(e.msg)}`).join("\n")}</div>`
+    : "";
+
+  const { camadas: cams, ciclo, bloqueados } = camadas(recursos);
+  desenharGrafo(recursos, cams, ciclo);
+
+  if (ciclo) {
+    $("resumo").innerHTML = `<b class="d">dependência circular</b> — não há ordem possível`;
+
+    const volta = esc([...ciclo, ciclo[0]].join(" → "));
+    const extra = bloqueados.length
+      ? `<li class="alterar"><span class="sinal">!</span><span class="end">${bloqueados.length} recurso(s) bloqueado(s)</span>
+         <div class="campos">${esc(bloqueados.join(", "))}<br>Estes não têm problema nenhum: só dependem de quem está preso no ciclo.</div></li>`
+      : "";
+
+    $("plano").innerHTML =
+      `<li class="destruir"><span class="sinal">!</span><span class="end">${volta}</span>
+       <div class="campos">O Terraform recusa o apply inteiro. Não é aviso: sem ordem, não há o que executar primeiro.</div></li>` + extra;
+    return;
+  }
+
+  const mudancas = planejar(estado, recursos);
+
+  const n = { criar: 0, alterar: 0, destruir: 0 };
+  for (const m of mudancas) n[m.acao]++;
+
+  $("resumo").innerHTML = mudancas.length === 0
+    ? `Nenhuma mudança. A infraestrutura já está como o código descreve.`
+    : `Plano: <b class="c">${n.criar} a criar</b>, <b class="a">${n.alterar} a alterar</b>, <b class="d">${n.destruir} a destruir</b>`;
+
+  const sinal = { criar: "+", alterar: "~", destruir: "−" };
+
+  $("plano").innerHTML = mudancas.map((m) => {
+    let detalhe = "";
+
+    if (m.acao === "alterar") {
+      detalhe = `<div class="campos">${m.campos.map((c) =>
+        `${esc(c.campo)}: <span class="de">${esc(JSON.stringify(c.de) ?? "—")}</span> → <span class="para">${esc(JSON.stringify(c.para) ?? "—")}</span>`
+      ).join("<br>")}</div>`;
+    } else if (m.acao === "criar") {
+      const chaves = Object.keys(m.depois).slice(0, 4);
+      detalhe = `<div class="campos">${chaves.map((k) => `${esc(k)} = <span class="para">${esc(JSON.stringify(m.depois[k]))}</span>`).join("<br>")}${Object.keys(m.depois).length > 4 ? "<br>…" : ""}</div>`;
+    } else {
+      detalhe = `<div class="campos">este recurso some do estado; o que dependia dele precisa ser conferido</div>`;
+    }
+
+    return `<li class="${m.acao}"><span class="sinal">${sinal[m.acao]}</span><span class="end">${esc(m.endereco)}</span>${detalhe}</li>`;
+  }).join("");
+}
+
+function aplicar() {
+  const { recursos } = recursosAtuais();
+  const { ciclo } = camadas(recursos);
+  if (ciclo) { planejarAgora(); return; }
+
+  estado = {};
+  for (const [endereco, r] of recursos) estado[endereco] = structuredClone(r.atributos);
+  atualizarEstado();
+  planejarAgora();
+}
+
+function atualizarEstado() {
+  const n = Object.keys(estado).length;
+  $("estado").textContent = n === 0 ? "estado: vazio" : `estado: ${n} recurso(s) registrado(s)`;
+}
+
+// --- Grafo ----------------------------------------------------------------
+
+function desenharGrafo(recursos, cams, ciclo) {
+  const svg = $("grafo");
+  const L = 900;
+  const margem = 18;
+  const larguraCol = cams.length ? (L - margem * 2) / Math.max(cams.length, 1) : L;
+  const alturaLinha = 46;
+
+  const maiorCamada = Math.max(1, ...cams.map((c) => c.length));
+  const A = Math.max(200, maiorCamada * alturaLinha + margem * 2 + 24);
+  svg.setAttribute("viewBox", `0 0 ${L} ${A}`);
+
+  const pos = new Map();
+  cams.forEach((camada, ci) => {
+    camada.forEach((nome, ri) => {
+      pos.set(nome, {
+        x: margem + ci * larguraCol + larguraCol / 2,
+        y: margem + 24 + ri * alturaLinha + alturaLinha / 2,
+      });
+    });
+  });
+
+  const partes = [];
+
+  // Rótulo de cada camada
+  cams.forEach((_, ci) => {
+    partes.push(`<text x="${margem + ci * larguraCol + larguraCol / 2}" y="16"
+      text-anchor="middle" fill="#7b8699">camada ${ci}</text>`);
+  });
+
+  partes.push(`<defs><marker id="seta" markerWidth="7" markerHeight="7" refX="6" refY="3"
+    orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="rgba(52,211,153,.55)"/></marker></defs>`);
+
+  // Arestas: do que é dependido para quem depende.
+  for (const [nome, r] of recursos) {
+    const destino = pos.get(nome);
+    if (!destino) continue;
+    for (const dep of r.dependencias) {
+      const origem = pos.get(dep);
+      if (!origem) continue;
+      const meio = (origem.x + destino.x) / 2;
+      partes.push(`<path d="M${origem.x + 62} ${origem.y} C ${meio} ${origem.y}, ${meio} ${destino.y}, ${destino.x - 66} ${destino.y}"
+        fill="none" stroke="rgba(52,211,153,.35)" stroke-width="1.5" marker-end="url(#seta)"/>`);
+    }
+  }
+
+  // Nós
+  for (const [nome, p] of pos) {
+    const r = recursos.get(nome);
+    const curto = nome.replace(/^aws_/, "");
+    const noEstado = Boolean(estado[nome]);
+    const cor = noEstado ? "rgba(52,211,153,.14)" : "rgba(255,255,255,.05)";
+    const borda = noEstado ? "rgba(52,211,153,.5)" : "rgba(255,255,255,.14)";
+
+    partes.push(`
+      <g>
+        <rect x="${p.x - 64}" y="${p.y - 15}" width="128" height="30" rx="7"
+              fill="${cor}" stroke="${borda}" stroke-width="1"/>
+        <text x="${p.x}" y="${p.y + 4}" text-anchor="middle" fill="#e7ecf3">${esc(curto.slice(0, 20))}</text>
+      </g>`);
+  }
+
+  if (ciclo) {
+    partes.push(`<text x="${L / 2}" y="${A - 10}" text-anchor="middle" fill="#fb7185">
+      ciclo: ${esc(ciclo.join(" → "))}</text>`);
+  }
+
+  svg.innerHTML = partes.join("");
+}
+
+// --- Interface ------------------------------------------------------------
+
+function aplicarCenario(c) {
+  if (c.aplicarBase) {
+    // Cenário que parte de "já aplicado": monta o estado a partir do HCL base.
+    $("hcl").value = BASE;
+    aplicar();
+  } else {
+    estado = structuredClone(c.estado ?? {});
+  }
+  $("hcl").value = c.hcl;
+  $("explica").innerHTML = c.explica;
+  atualizarEstado();
+  planejarAgora();
+}
+
+(function montar() {
+  const caixa = $("exemplos");
+  CENARIOS.forEach((c, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = c.nome;
+    b.addEventListener("click", () => {
+      caixa.querySelectorAll("button").forEach((o) => o.classList.remove("ativo"));
+      b.classList.add("ativo");
+      aplicarCenario(c);
+    });
+    if (i === 0) b.classList.add("ativo");
+    caixa.appendChild(b);
+  });
+})();
+
+$("planejar").addEventListener("click", planejarAgora);
+$("aplicar").addEventListener("click", aplicar);
+$("destruir").addEventListener("click", () => {
+  estado = {};
+  atualizarEstado();
+  planejarAgora();
+});
+
+aplicarCenario(CENARIOS[0]);
+</script>
+</body>
+</html>
