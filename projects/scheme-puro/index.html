@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Avaliador metacircular em Scheme — Laboratório Autark</title>
+<meta name="description" content="Um Scheme escrito em Scheme, avaliando a si mesmo: o exercício clássico do SICP, com REPL aberto e comparação entre o interpretador nativo e o meu.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  textarea#codigo { min-height: 250px; font-size: .84rem; line-height: 1.6; }
+
+  .exemplos { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .exemplos button { font-size: .75rem; padding: 6px 11px; font-family: var(--font-mono); }
+  .exemplos button.ativo { background: var(--accent-soft); border-color: rgba(52,211,153,.32); color: var(--accent); }
+
+  .explica {
+    font-size: .85rem; color: var(--text-muted); margin: 0 0 12px;
+    padding: 11px 14px; background: var(--surface); border-radius: 9px;
+    border-left: 2px solid var(--accent);
+  }
+
+  .lado-a-lado { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 760px) { .lado-a-lado { grid-template-columns: 1fr; } }
+
+  .resultado {
+    border-radius: 10px; padding: 14px; border: 1px solid var(--border);
+    background: rgba(0,0,0,.3);
+  }
+  .resultado .rot {
+    font-family: var(--font-mono); font-size: .66rem; letter-spacing: .09em;
+    text-transform: uppercase; margin-bottom: 9px;
+  }
+  .resultado.nativo .rot { color: var(--text-dim); }
+  .resultado.meu .rot { color: var(--accent); }
+  .resultado.meu { border-color: rgba(52,211,153,.28); background: rgba(52,211,153,.05); }
+  .resultado pre {
+    margin: 0; font-family: var(--font-mono); font-size: .86rem;
+    white-space: pre-wrap; word-break: break-word; color: var(--text);
+  }
+  .resultado.erro { border-color: rgba(251,113,133,.32); background: rgba(251,113,133,.06); }
+  .resultado.erro pre { color: var(--rose); font-size: .78rem; }
+
+  .veredito {
+    margin-top: 14px; padding: 12px 15px; border-radius: 9px;
+    font-family: var(--font-mono); font-size: .82rem;
+  }
+  .veredito.igual { background: var(--accent-soft); border: 1px solid rgba(52,211,153,.25); color: var(--accent); }
+  .veredito.diferente { background: rgba(251,113,133,.07); border: 1px solid rgba(251,113,133,.3); color: var(--rose); }
+
+  pre.fonte-scm {
+    background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; font-size: .73rem; line-height: 1.55; overflow: auto; margin: 0;
+    max-height: 520px; color: var(--text-muted);
+  }
+  pre.fonte-scm .c { color: var(--text-dim); font-style: italic; }
+  pre.fonte-scm .k { color: var(--cyan); }
+  pre.fonte-scm .p { color: var(--text-dim); }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+
+  .camadas { font-family: var(--font-mono); font-size: .76rem; color: var(--text-dim); line-height: 2; }
+  .camadas .n { color: var(--accent); }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">Scheme</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/scheme-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Um Scheme escrito em Scheme</h1>
+  <p class="pitch">
+    O que você digitar abaixo é avaliado <strong>duas vezes</strong>: uma pelo
+    interpretador Scheme do navegador, outra por um interpretador que eu escrevi
+    <em>em Scheme</em> e que está rodando dentro do primeiro. Se as duas respostas
+    baterem, o avaliador está correto.
+  </p>
+
+  <div class="meta">
+    <span>Scheme (R7RS parcial)</span>
+    <span>BiwaScheme</span>
+    <span>avaliador metacircular</span>
+    <span>exercício clássico do SICP</span>
+    <span>~150 linhas</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    O avaliador metacircular é o momento em que se entende o que uma linguagem
+    realmente é: um conjunto de regras sobre o que cada forma significa. Não há parser
+    aqui — em Lisp, <b>código já é dado</b>, então o programa chega como lista pronta.
+    Poucas coisas demonstram fundamento melhor do que isso.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>Exemplos</h2>
+      <div class="exemplos" id="exemplos"></div>
+      <p class="explica" id="explica">Carregando o Scheme…</p>
+    </section>
+
+    <div class="duas">
+
+      <section class="painel">
+        <h2>O programa <span class="hint">escreva o que quiser</span></h2>
+        <textarea id="codigo" spellcheck="false" aria-label="Código Scheme"></textarea>
+        <div class="linha" style="margin-top:12px">
+          <button class="pri" id="rodar" disabled>Avaliar dos dois jeitos</button>
+        </div>
+
+        <div class="camadas" style="margin-top:18px">
+          <div>navegador <span class="n">→</span> JavaScript</div>
+          <div>&nbsp;&nbsp;JavaScript <span class="n">→</span> BiwaScheme</div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;BiwaScheme <span class="n">→</span> meu avaliador (Scheme)</div>
+          <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;meu avaliador <span class="n">→</span> o seu programa</div>
+        </div>
+      </section>
+
+      <section class="painel">
+        <h2>Os dois resultados</h2>
+        <div class="lado-a-lado">
+          <div class="resultado nativo" id="r-nativo">
+            <div class="rot">BiwaScheme direto</div>
+            <pre>—</pre>
+          </div>
+          <div class="resultado meu" id="r-meu">
+            <div class="rot">pelo meu avaliador</div>
+            <pre>—</pre>
+          </div>
+        </div>
+        <div id="veredito"></div>
+
+        <p class="dica" style="margin-top:18px">
+          O avaliador entende <code>define</code>, <code>lambda</code>, <code>if</code>,
+          <code>cond</code>, <code>let</code>, <code>begin</code> e <code>quote</code>,
+          mais trinta primitivas. Não entende macro nem chamada de cauda otimizada —
+          recursão muito profunda estoura a pilha do hospedeiro.
+        </p>
+      </section>
+
+    </div>
+
+    <section class="painel">
+      <h2>As duas linhas que importam</h2>
+      <p class="dica">
+        <b>Fechamento.</b> <code>lambda</code> não cria função: cria uma <b>lista</b> com
+        parâmetros, corpo e <em>o ambiente onde nasceu</em>. Esse terceiro item é tudo —
+        sem ele, uma função devolvida de dentro de outra esqueceria de onde veio.
+      </p>
+      <p class="dica">
+        <b>Escopo léxico.</b> Ao aplicar, o ambiente estendido é o <b>da definição</b>, não
+        o de quem chamou. Trocar <code>cadddr procedimento</code> por “ambiente atual”
+        transformaria a linguagem inteira em escopo dinâmico — uma linha decide isso.
+      </p>
+      <details>
+        <summary style="cursor:pointer;font-size:.82rem;color:var(--accent);margin-bottom:10px">Ver o avaliador inteiro (metacircular.scm)</summary>
+        <pre class="fonte-scm" id="fonte">carregando…</pre>
+      </details>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/scheme-puro">Ler o metacircular.scm</a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/biwascheme@0.8.3/release/biwascheme.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+const EXEMPLOS = [
+  {
+    nome: "fatorial",
+    explica: "Recursão simples. O <code>define</code> com forma de lista cria a função, e o <code>if</code> corta a recursão — duas regras do avaliador trabalhando juntas.",
+    codigo: `(define (fatorial n)
+  (if (< n 2)
+      1
+      (* n (fatorial (- n 1)))))
+
+(fatorial 12)`,
+  },
+  {
+    nome: "fechamento",
+    explica: "A prova de que o ambiente é guardado. <code>contador</code> devolve uma função que ainda enxerga o <code>n</code> de quem a criou — e cada chamada de <code>contador</code> cria um <code>n</code> novo.",
+    codigo: `(define (somador n)
+  (lambda (x) (+ x n)))
+
+(define mais5  (somador 5))
+(define mais10 (somador 10))
+
+(list (mais5 1) (mais10 1) (mais5 (mais10 0)))`,
+  },
+  {
+    nome: "funções de ordem superior",
+    explica: "Função que recebe e devolve função, escrita na linguagem interpretada. Nada disso é primitiva — tudo sai do <code>lambda</code> e da aplicação.",
+    codigo: `(define (mapear f lista)
+  (if (null? lista)
+      '()
+      (cons (f (car lista)) (mapear f (cdr lista)))))
+
+(define (dobrar x) (* 2 x))
+
+(define (compor f g)
+  (lambda (x) (f (g x))))
+
+(list (mapear dobrar (list 1 2 3 4 5))
+      ((compor dobrar dobrar) 7))`,
+  },
+  {
+    nome: "código é dado",
+    explica: "<code>quote</code> devolve a expressão <b>sem avaliar</b>. É a mesma lista que o avaliador percorreria — em Lisp, programa e estrutura de dados são a mesma coisa, e é por isso que não existe parser aqui.",
+    codigo: `(define programa '(+ 1 (* 2 3)))
+
+(list programa
+      (car programa)
+      (length programa))`,
+  },
+  {
+    nome: "cond e listas",
+    explica: "Classificação com <code>cond</code> e uma lista construída por recursão. Repare que <code>else</code> é tratado como caso especial dentro do avaliador — não é uma variável.",
+    codigo: `(define (classificar n)
+  (cond ((< n 0)  "negativo")
+        ((zero? n) "zero")
+        ((< n 10)  "pequeno")
+        (else      "grande")))
+
+(define (classificar-todos lista)
+  (if (null? lista)
+      '()
+      (cons (classificar (car lista))
+            (classificar-todos (cdr lista)))))
+
+(classificar-todos (list -3 0 7 42))`,
+  },
+];
+
+let interp = null;
+let fonteAvaliador = "";
+
+// --- Avaliação ------------------------------------------------------------
+
+function avaliarBiwa(codigo) {
+  return new Promise((resolve) => {
+    let erro = null;
+    const it = new BiwaScheme.Interpreter((e) => { erro = e; });
+
+    try {
+      it.evaluate(codigo, (resultado) => {
+        if (erro) resolve({ erro: String(erro.message ?? erro) });
+        else resolve({ valor: BiwaScheme.to_write(resultado) });
+      });
+    } catch (e) {
+      resolve({ erro: String(e.message ?? e) });
+    }
+
+    // evaluate com callback é assíncrono no BiwaScheme; se o erro veio pelo
+    // handler antes do callback, nada resolveria a promessa.
+    setTimeout(() => { if (erro) resolve({ erro: String(erro.message ?? erro) }); }, 1200);
+  });
+}
+
+async function avaliar() {
+  const codigo = $("codigo").value;
+
+  mostrar("r-nativo", "BiwaScheme direto", { valor: "avaliando…" });
+  mostrar("r-meu", "pelo meu avaliador", { valor: "avaliando…" });
+  $("veredito").innerHTML = "";
+
+  const nativo = await avaliarBiwa(codigo);
+
+  // O programa do visitante vai entre aspas simples: assim ele chega ao meu
+  // avaliador como DADO, não como algo que o BiwaScheme já executou.
+  const viaMeu = await avaliarBiwa(`${fonteAvaliador}\n(rodar '(${codigo}))`);
+
+  mostrar("r-nativo", "BiwaScheme direto", nativo);
+  mostrar("r-meu", "pelo meu avaliador", viaMeu);
+
+  if (nativo.erro || viaMeu.erro) {
+    $("veredito").innerHTML = "";
+    return;
+  }
+
+  const igual = nativo.valor === viaMeu.valor;
+  $("veredito").innerHTML = igual
+    ? `<div class="veredito igual">As duas respostas batem. O avaliador está correto para este programa.</div>`
+    : `<div class="veredito diferente">As respostas divergem — há um caso que o meu avaliador ainda não trata.</div>`;
+}
+
+function mostrar(id, rotulo, r) {
+  const el = $(id);
+  el.className = "resultado " + (id === "r-meu" ? "meu" : "nativo") + (r.erro ? " erro" : "");
+  el.innerHTML = `<div class="rot">${esc(rotulo)}</div><pre>${esc(r.erro ?? r.valor)}</pre>`;
+}
+
+// --- Interface ------------------------------------------------------------
+
+function aplicar(ex) {
+  $("codigo").value = ex.codigo;
+  $("explica").innerHTML = ex.explica;
+  avaliar();
+}
+
+(function montar() {
+  const caixa = $("exemplos");
+  EXEMPLOS.forEach((ex, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = ex.nome;
+    b.addEventListener("click", () => {
+      caixa.querySelectorAll("button").forEach((o) => o.classList.remove("ativo"));
+      b.classList.add("ativo");
+      aplicar(ex);
+    });
+    if (i === 0) b.classList.add("ativo");
+    caixa.appendChild(b);
+  });
+})();
+
+$("rodar").addEventListener("click", avaliar);
+
+// --- Início ---------------------------------------------------------------
+
+(async () => {
+  try {
+    fonteAvaliador = await (await fetch("metacircular.scm")).text();
+
+    $("fonte").innerHTML = esc(fonteAvaliador)
+      .replace(/(^|\n)(\s*)(;.*)/g, '$1$2<span class="c">$3</span>')
+      .replace(/\b(define|lambda|if|cond|else|let|begin|quote|and|or|not|null\?|pair\?|car|cdr|cons|error|apply|map)\b/g, '<span class="k">$1</span>');
+
+    $("rodar").disabled = false;
+    aplicar(EXEMPLOS[0]);
+  } catch (e) {
+    $("explica").innerHTML = `<span style="color:var(--rose)">Não consegui carregar o avaliador: ${esc(String(e.message ?? e))}</span>`;
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>
