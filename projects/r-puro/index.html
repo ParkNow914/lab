@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>As estatísticas concordam. Os dados não. — Laboratório Autark</title>
+<meta name="description" content="Quatro conjuntos com a mesma média, o mesmo desvio, a mesma correlação e a mesma reta de regressão — e formatos completamente diferentes. R de verdade rodando no seu navegador com WebR.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  .tela {
+    position: relative; border: 1px solid var(--border); border-radius: 11px;
+    background: #0f131a; overflow: hidden; aspect-ratio: 25 / 16;
+  }
+  .tela canvas { display: block; width: 100%; height: 100%; }
+  .tela .carregando {
+    position: absolute; inset: 0; display: grid; place-content: center; gap: 8px;
+    text-align: center; background: #0f131a;
+  }
+  .tela .carregando b { color: var(--accent); font-size: .9rem; }
+  .tela .carregando span { color: var(--text-dim); font-size: .78rem; max-width: 300px; line-height: 1.6; }
+  .tela.pronta .carregando { display: none; }
+
+  .escolhas { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 13px; }
+  .escolhas button { font-family: var(--font-mono); font-size: .74rem; padding: 5px 11px; }
+  .escolhas button.sel { color: var(--accent); border-color: rgba(52,211,153,.45); background: rgba(52,211,153,.1); }
+
+  .alavanca { margin-top: 15px; display: none; }
+  .alavanca.on { display: block; }
+  .alavanca label { display: flex; align-items: center; gap: 11px; font-size: .82rem; color: var(--text-muted); }
+  .alavanca input[type=range] { flex: 1; accent-color: var(--rose); }
+  .alavanca .v { font-family: var(--font-mono); font-size: .82rem; color: var(--rose); min-width: 46px; text-align: right; }
+
+  table.stats { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: .8rem; }
+  table.stats td { padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+  table.stats tr:last-child td { border-bottom: none; }
+  table.stats td:first-child { color: var(--text-dim); font-family: var(--font-sans); font-size: .82rem; }
+  table.stats td:last-child { text-align: right; color: var(--accent); }
+  table.stats td.igual { color: var(--cyan); }
+  table.stats td.alerta { color: var(--amber); }
+
+  .selo {
+    margin: 15px 0 0; padding: 12px 14px; border-radius: 10px; font-size: .84rem; line-height: 1.65;
+    background: rgba(103,232,249,.07); border: 1px solid rgba(103,232,249,.24); color: var(--text-muted);
+  }
+  .selo b { color: var(--cyan); }
+  .selo.quente { background: rgba(251,191,36,.07); border-color: rgba(251,191,36,.26); }
+  .selo.quente b { color: var(--amber); }
+
+  pre.rcode {
+    margin: 0; padding: 13px 15px; border-radius: 10px; overflow-x: auto;
+    background: var(--surface); border: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: .75rem; line-height: 1.7; color: var(--text-muted);
+  }
+  pre.rcode .c { color: var(--text-dim); }
+  pre.rcode .f { color: var(--cyan); }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 13px; line-height: 1.75; }
+  .dica b { color: var(--accent); }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .78rem; }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">R</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/r-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>As estatísticas concordam. Os dados não.</h1>
+  <p class="pitch">
+    Quatro conjuntos com a <strong>mesma média</strong>, o <strong>mesmo desvio</strong>, a
+    <strong>mesma correlação</strong> e a <strong>mesma reta de regressão</strong> — até a
+    segunda casa decimal. Troque entre eles e olhe o gráfico. Depois arraste um único ponto
+    e veja um p-valor irretocável apontar para uma relação que não existe.
+  </p>
+
+  <div class="meta">
+    <span>R 4.x</span>
+    <span>WebR</span>
+    <span>regressão linear</span>
+    <span>intervalo de confiança</span>
+    <span>roda no seu navegador</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    R não é "análise de dados", é estatística — e a diferença aparece na hora de decidir se
+    um número significa alguma coisa. O quarteto de Anscombe é de 1973 e continua sendo a
+    demonstração mais eficiente de que resumo numérico sozinho não descreve dado nenhum.
+    Aqui ele roda de verdade: o <code>lm()</code>, o <code>cor()</code> e o gráfico são os
+    do R, compilados para WebAssembly e executando na sua máquina.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+    <div class="duas">
+
+      <section class="painel">
+        <h2>O gráfico <span class="hint">desenhado pelo R</span></h2>
+
+        <div class="escolhas" id="escolhas">
+          <button data-d="1" class="sel">Anscombe I</button>
+          <button data-d="2">II</button>
+          <button data-d="3">III</button>
+          <button data-d="4">IV</button>
+          <button data-d="alavanca">Alavanca</button>
+        </div>
+
+        <div class="tela" id="tela">
+          <canvas id="grafico" width="1000" height="640"></canvas>
+          <div class="carregando">
+            <b id="passo">Baixando o R…</b>
+            <span>São uns 30 MB: o interpretador inteiro, compilado para WebAssembly. Depois disso tudo roda offline, na sua máquina.</span>
+          </div>
+        </div>
+
+        <div class="alavanca" id="alavanca">
+          <label>
+            <span>ponto solitário em x=20</span>
+            <input type="range" id="slider" min="-5" max="32" step="0.5" value="10.5">
+            <span class="v" id="sliderv">10.5</span>
+          </label>
+          <p class="dica" style="margin:11px 0 0">
+            Dez pontos sem relação nenhuma, e <b>um</b> ponto longe de todos. Arraste e
+            acompanhe a correlação e o p-valor do lado.
+          </p>
+        </div>
+      </section>
+
+      <section class="painel">
+        <h2>O que o R calculou <span class="hint">nada aqui é chute</span></h2>
+
+        <table class="stats">
+          <tr><td>observações</td><td id="s-n">—</td></tr>
+          <tr><td>média de x</td><td id="s-mx">—</td></tr>
+          <tr><td>média de y</td><td id="s-my">—</td></tr>
+          <tr><td>desvio-padrão de y</td><td id="s-dy">—</td></tr>
+          <tr><td>correlação (r)</td><td id="s-r">—</td></tr>
+          <tr><td>reta ajustada</td><td id="s-reta">—</td></tr>
+          <tr><td>R²</td><td id="s-r2">—</td></tr>
+          <tr><td>p-valor da inclinação</td><td id="s-p">—</td></tr>
+          <tr><td>IC 95% da inclinação</td><td id="s-ic">—</td></tr>
+        </table>
+
+        <div class="selo" id="selo">Carregando…</div>
+
+        <h2 style="margin-top:24px">O código que rodou <span class="hint">exatamente este</span></h2>
+        <pre class="rcode" id="rcode"></pre>
+
+        <p class="dica" style="margin-top:16px">
+          <b>O que o quarteto prova.</b> Os quatro conjuntos são idênticos em média, desvio,
+          correlação e reta. O II é uma parábola perfeita — a reta é a pior descrição
+          possível dele. O III é uma reta exata com um ponto errado, que entorta o ajuste.
+          O IV não tem relação nenhuma: <em>um só</em> ponto produz toda a correlação.
+        </p>
+
+        <p class="dica">
+          <b>Por que o p-valor não te salva.</b> Na aba Alavanca, o p-valor cai abaixo de
+          0,05 com o ponto solitário em qualquer extremo. Ele responde "se não houvesse
+          relação, qual a chance de eu ver isto?" — e não responde "este modelo descreve
+          estes dados?". Nenhum número sozinho responde a segunda. O gráfico responde.
+        </p>
+
+        <p class="dica">
+          <b>Onde isto roda.</b> No seu navegador: o WebR é o R compilado para WebAssembly,
+          com <code>lm()</code>, <code>cor()</code> e o dispositivo gráfico de verdade. Não
+          há servidor nenhum atrás desta página, e não há nada para cair.
+        </p>
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/r-puro">Ver o código</a>
+  </div>
+</div>
+
+<script type="module">
+import { WebR } from "https://webr.r-wasm.org/latest/webr.mjs";
+
+const $ = (id) => document.getElementById(id);
+const tela = $("tela");
+const ctx = $("grafico").getContext("2d");
+
+// Dez pontos sem tendencia nenhuma, de proposito. O 11o e o unico movel, e
+// esta longe dos outros no eixo x — e dai que vem a alavanca.
+const BASE_X = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+const BASE_Y = [9.4, 10.8, 9.1, 11.2, 9.9, 10.3, 9.2, 10.7, 9.6, 10.4];
+
+let webR = null;
+let abrigo = null;
+let conjunto = "1";
+let ocupado = false;
+let pendente = false;
+
+// ---------------------------------------------------------------- R
+
+// O tema escuro vive no R, nao no CSS: o grafico e um PNG gerado pelo
+// dispositivo grafico dele, entao cor de fundo e de eixo precisam ser
+// argumentos de par().
+const TEMA = `par(bg = "#0f131a", fg = "#39414f", col.axis = "#8fa0b3",
+    col.lab = "#8fa0b3", cex.axis = 1.15, mar = c(4.4, 5.0, 1.6, 1.6), lwd = 1.2)`;
+
+const DESENHO = `
+ajuste <- lm(y ~ x)
+
+plot(x, y, pch = 19, col = "#34d399", cex = 2.2, las = 1, xlab = "x", ylab = "y",
+     cex.lab = 1.3, xlim = faixa(x), ylim = faixa(y))
+
+# Banda de confianca: e ela que mostra o quanto a reta e (ou nao e) confiavel
+# em cada trecho. Onde ha pouco dado, ela abre.
+nd <- data.frame(x = seq(faixa(x)[1], faixa(x)[2], length.out = 120))
+pr <- predict(ajuste, newdata = nd, interval = "confidence")
+polygon(c(nd$x, rev(nd$x)), c(pr[, "lwr"], rev(pr[, "upr"])),
+        col = "#fbbf2410", border = "#fbbf2433")
+
+abline(ajuste, col = "#fbbf24", lwd = 3)
+points(x, y, pch = 19, col = "#34d399", cex = 2.2)
+`;
+
+const RESUMO = `
+s <- summary(ajuste)
+ic <- confint(ajuste)["x", ]
+unlist(list(
+  n = length(x), mx = mean(x), my = mean(y), dy = sd(y),
+  r = cor(x, y), a = unname(coef(ajuste)[1]), b = unname(coef(ajuste)[2]),
+  r2 = s$r.squared, p = unname(s$coefficients["x", 4]),
+  ic1 = unname(ic[1]), ic2 = unname(ic[2])
+))
+`;
+
+function codigoVisivel() {
+  if (conjunto === "alavanca") {
+    return `x <- c(${BASE_X.join(", ")}, 20)
+y <- c(${BASE_Y.join(", ")}, ${Number($("slider").value).toFixed(1)})
+
+ajuste <- lm(y ~ x)
+summary(ajuste)$coefficients["x", 4]   # p-valor
+cor(x, y)                              # correlacao`;
+  }
+  return `x <- anscombe$x${conjunto}
+y <- anscombe$y${conjunto}
+
+ajuste <- lm(y ~ x)
+summary(ajuste)$coefficients["x", 4]   # p-valor
+cor(x, y)                              # correlacao`;
+}
+
+function pintarR(texto) {
+  return texto
+    .replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]))
+    .replace(/(#.*)$/gm, '<span class="c">$1</span>')
+    .replace(/\b(lm|summary|cor|c|anscombe)\b(?=\(|\$)/g, '<span class="f">$1</span>');
+}
+
+// --------------------------------------------------------------- ciclo
+
+async function preparar() {
+  $("passo").textContent = "Baixando o R…";
+
+  // Canal PostMessage de proposito. O canal padrao do webR usa
+  // SharedArrayBuffer, que so existe em pagina isolada de origem cruzada — e o
+  // GitHub Pages nao manda COOP/COEP nem da para configurar. Com o padrao,
+  // esta pagina funcionaria no teste local e quebraria em producao, que e o
+  // pior lugar para descobrir.
+  webR = new WebR({ channelType: 3 });
+  await webR.init();
+
+  $("passo").textContent = "Iniciando a sessão…";
+  abrigo = await new webR.Shelter();
+
+  // faixa() so existe para dar respiro nos limites do grafico; sem ela os
+  // pontos extremos encostam na borda.
+  await webR.evalRVoid(`faixa <- function(v) { d <- diff(range(v)); range(v) + c(-1, 1) * max(d * 0.08, 0.5) }`);
+
+  tela.classList.add("pronta");
+  await atualizar();
+}
+
+async function dados() {
+  if (conjunto === "alavanca") {
+    const extra = Number($("slider").value);
+    await webR.objs.globalEnv.bind("x", [...BASE_X, 20]);
+    await webR.objs.globalEnv.bind("y", [...BASE_Y, extra]);
+  } else {
+    await webR.evalRVoid(`x <- anscombe$x${conjunto}; y <- anscombe$y${conjunto}`);
+  }
+}
+
+async function atualizar() {
+  // Arrastar o slider dispara dezenas de pedidos; o R e sequencial. Guardar um
+  // unico pedido pendente evita a fila crescer sem limite e a tela ficar
+  // desenhando estado velho depois que o dedo ja saiu do controle.
+  if (ocupado) { pendente = true; return; }
+  ocupado = true;
+
+  try {
+    await dados();
+
+    const captura = await abrigo.captureR(TEMA + DESENHO, {
+      withAutoprint: false,
+      captureStreams: false,
+      captureGraphics: { width: 1000, height: 640, bg: "#0f131a", pointsize: 17 },
+    });
+
+    if (captura.images.length) {
+      ctx.clearRect(0, 0, 1000, 640);
+      ctx.drawImage(captura.images[0], 0, 0, 1000, 640);
+    }
+    abrigo.purge();
+
+    const r = await (await abrigo.evalR(RESUMO)).toJs();
+    const v = Object.fromEntries(r.names.map((n, i) => [n, r.values[i]]));
+    mostrar(v);
+  } finally {
+    ocupado = false;
+    if (pendente) { pendente = false; atualizar(); }
+  }
+}
+
+const n2 = (x) => x.toFixed(2);
+
+function mostrar(v) {
+  $("s-n").textContent = String(v.n);
+  $("s-mx").textContent = n2(v.mx);
+  $("s-my").textContent = n2(v.my);
+  $("s-dy").textContent = n2(v.dy);
+  $("s-r").textContent = v.r.toFixed(3);
+  $("s-reta").textContent = `y = ${n2(v.a)} + ${n2(v.b)}·x`;
+  $("s-r2").textContent = v.r2.toFixed(3);
+  $("s-p").textContent = v.p < 0.001 ? "< 0,001" : v.p.toFixed(4);
+  $("s-ic").textContent = `[${n2(v.ic1)} ; ${n2(v.ic2)}]`;
+
+  // As celulas identicas entre os quatro Anscombe ficam em ciano: e o jeito
+  // mais direto de dizer "olhe, sao os mesmos numeros".
+  const anscombe = conjunto !== "alavanca";
+  for (const id of ["s-mx", "s-my", "s-dy", "s-r", "s-reta", "s-r2"]) {
+    $(id).classList.toggle("igual", anscombe);
+  }
+  $("s-p").classList.toggle("alerta", v.p < 0.05);
+
+  $("rcode").innerHTML = pintarR(codigoVisivel());
+
+  const selo = $("selo");
+  selo.classList.toggle("quente", conjunto === "alavanca");
+  selo.innerHTML = conjunto === "alavanca"
+    ? (v.p < 0.05
+        ? `<b>p = ${v.p < 0.001 ? "< 0,001" : v.p.toFixed(4)}, r = ${v.r.toFixed(2)}.</b> Significativo, publicável, e produzido por <em>um</em> ponto. Tire-o e não sobra relação nenhuma.`
+        : `<b>p = ${v.p.toFixed(3)}.</b> Sem relação detectável — que é a verdade sobre estes dados. Arraste o ponto e veja o número virar.`)
+    : `<b>Média, desvio, correlação e reta são iguais nos quatro.</b> Só o gráfico distingue um do outro.`;
+}
+
+// --------------------------------------------------------------- eventos
+
+for (const b of $("escolhas").querySelectorAll("button")) {
+  b.addEventListener("click", () => {
+    for (const o of $("escolhas").querySelectorAll("button")) o.classList.toggle("sel", o === b);
+    conjunto = b.dataset.d;
+    $("alavanca").classList.toggle("on", conjunto === "alavanca");
+    if (abrigo) atualizar();
+  });
+}
+
+$("slider").addEventListener("input", () => {
+  $("sliderv").textContent = Number($("slider").value).toFixed(1);
+  if (abrigo) atualizar();
+});
+
+$("rcode").innerHTML = pintarR(codigoVisivel());
+
+preparar().catch((e) => {
+  $("passo").textContent = "Não consegui carregar o R.";
+  $("selo").innerHTML = `<b>Falhou:</b> ${String(e.message ?? e)}`;
+  console.error(e);
+});
+</script>
+</body>
+</html>

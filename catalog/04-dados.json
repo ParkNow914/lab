@@ -24,11 +24,11 @@
     {
       "id": "r-puro",
       "lang": "R", "langId": "r", "kind": "pure", "framework": null,
-      "title": "Laboratório de inferência estatística",
-      "pitch": "Teste de hipótese, intervalo de confiança e regressão sobre dados que você ajusta — com o gráfico se redesenhando a cada mudança.",
-      "why": "R é estatística de verdade, não 'análise de dados'. Mostrar teste de hipótese bem-feito diferencia de quem só sabe plotar gráfico bonito.",
+      "title": "As estatísticas concordam, os dados não",
+      "pitch": "Quatro conjuntos com a mesma média, o mesmo desvio, a mesma correlação e a mesma reta — e formatos completamente diferentes. Depois arraste um ponto e veja um p-valor irretocável apontar para uma relação que não existe.",
+      "why": "R é estatística de verdade, não 'análise de dados', e a diferença aparece na hora de decidir se um número significa alguma coisa. O quarteto de Anscombe é de 1973 e continua sendo a prova mais eficiente de que resumo numérico sozinho não descreve dado nenhum.",
       "runtime": "wasm", "toolchain": "WebR",
-      "status": "planned", "tags": ["estatística", "inferência", "WebR"]
+      "status": "planned", "tags": ["estatística", "inferência", "regressão", "WebR"]
     },
     {
       "id": "r-shiny",
