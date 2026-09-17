@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relatório numa linha só, com AWK — Laboratório Autark</title>
+<meta name="description" content="AWK do POSIX rodando no navegador: transforme texto tabular em relatório com uma linha de código, e veja por que a linguagem de 1977 nunca saiu de moda.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  textarea#programa { min-height: 96px; font-size: .82rem; line-height: 1.6; }
+  textarea#entrada  { min-height: 210px; font-size: .74rem; line-height: 1.5; }
+
+  .exemplos { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .exemplos button { font-size: .75rem; padding: 6px 11px; font-family: var(--font-mono); }
+  .exemplos button.ativo { background: var(--accent-soft); border-color: rgba(52,211,153,.32); color: var(--accent); }
+  .exemplos button.perigo { color: var(--rose); border-color: rgba(251,113,133,.28); }
+  .exemplos button.perigo.ativo { background: rgba(251,113,133,.12); color: var(--rose); border-color: rgba(251,113,133,.4); }
+
+  .explica {
+    font-size: .85rem; color: var(--text-muted); margin: 0 0 12px;
+    padding: 11px 14px; background: var(--surface); border-radius: 9px;
+    border-left: 2px solid var(--accent);
+  }
+  .explica.perigo { border-left-color: var(--rose); }
+
+  pre.saida-awk {
+    background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; font-size: .78rem; line-height: 1.6; overflow: auto; margin: 0;
+    min-height: 220px; max-height: 420px; white-space: pre; color: var(--text);
+  }
+  pre.saida-awk.erro { border-color: rgba(251,113,133,.35); background: rgba(251,113,133,.06); color: var(--rose); white-space: pre-wrap; }
+
+  .num-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-top: 14px; }
+  .num-grid .k { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; }
+  .num-grid .k .n { font-family: var(--font-mono); font-size: 1.1rem; color: var(--accent); line-height: 1.2; }
+  .num-grid .k .l { font-size: .7rem; color: var(--text-dim); margin-top: 3px; }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica .r { color: var(--rose); font-weight: 600; }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+
+  .campos { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .campos > div { flex: 0 0 130px; }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">AWK</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/awk-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Relatório financeiro em uma linha</h1>
+  <p class="pitch">
+    AWK é de 1977 e continua sendo a forma mais curta de transformar texto tabular em
+    resposta. Não é nostalgia: é que <strong>“para cada linha, faça isto”</strong> já é o
+    programa inteiro — o laço, a divisão em campos e a conversão de número vêm de graça.
+  </p>
+
+  <div class="meta">
+    <span>AWK (POSIX)</span>
+    <span>GoAWK compilado para WASM</span>
+    <span>roda num Web Worker</span>
+    <span>sem system(), sem arquivo</span>
+    <span>roda no navegador</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    Saber compor ferramenta Unix resolve em uma linha o que viraria um script de 200. É a
+    habilidade que mais economiza tempo em servidor de cliente — e a densidade do AWK é
+    o argumento: compare o tamanho do programa com o tamanho do relatório que ele produz.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>Exemplos</h2>
+      <div class="exemplos" id="exemplos"></div>
+      <p class="explica" id="explica">Carregando o interpretador…</p>
+    </section>
+
+    <div class="duas">
+
+      <section class="painel">
+        <h2>O programa <span class="hint">costuma caber numa linha</span></h2>
+        <label for="programa">AWK</label>
+        <textarea id="programa" spellcheck="false" aria-label="Programa AWK"></textarea>
+
+        <div class="campos" style="margin-top:12px">
+          <div>
+            <label for="fs">separador (FS)</label>
+            <input type="text" id="fs" value="," spellcheck="false">
+          </div>
+          <button class="pri" id="rodar" disabled>Executar</button>
+        </div>
+
+        <h2 style="margin-top:20px">A entrada <span class="hint">stdin</span></h2>
+        <textarea id="entrada" spellcheck="false" aria-label="Entrada"></textarea>
+      </section>
+
+      <section class="painel">
+        <h2>Saída</h2>
+        <pre class="saida-awk" id="saida">—</pre>
+
+        <div class="num-grid">
+          <div class="k"><div class="n" id="k-prog">—</div><div class="l">caracteres no programa</div></div>
+          <div class="k"><div class="n" id="k-entrada">—</div><div class="l">linhas de entrada</div></div>
+          <div class="k"><div class="n" id="k-saida">—</div><div class="l">linhas de saída</div></div>
+          <div class="k"><div class="n" id="k-ms">—</div><div class="l">tempo</div></div>
+        </div>
+
+        <p class="dica" style="margin-top:16px">
+          <b>$1, $2, $3</b> são os campos da linha atual. <b>NR</b> é o número da linha,
+          <b>NF</b> a quantidade de campos. <b>BEGIN</b> roda antes da primeira linha e
+          <b>END</b> depois da última — é onde o total é impresso.
+        </p>
+      </section>
+
+    </div>
+
+    <section class="painel">
+      <h2>Por que num Web Worker</h2>
+      <p class="dica">
+        O GoAWK não aceita cancelamento: um <code>BEGIN { while (1) {} }</code> não tem
+        como ser interrompido de dentro. Na thread principal isso <span class="r">travaria
+        a aba</span> do visitante para sempre, sem recuperação.
+      </p>
+      <p class="dica">
+        Rodando num worker, o laço trava apenas aquela thread — e a página, que continua
+        respondendo, mata o worker e sobe outro. O botão vermelho acima executa exatamente
+        esse caso: o programa não termina, o cronômetro estoura em 3 segundos e o
+        interpretador é substituído.
+      </p>
+      <p class="dica">
+        O interpretador também roda com <code>NoExec</code>, <code>NoFileReads</code> e
+        <code>NoFileWrites</code>: <code>system()</code>, pipe e redirecionamento para
+        arquivo simplesmente não funcionam, mesmo que alguém tente.
+      </p>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/awk-puro">Ver o código</a>
+  </div>
+</div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+
+const EXTRATO = [
+  "data,categoria,descricao,valor",
+  "2026-08-01,receita,Projeto AgendaZap - parcela 1,4500.00",
+  "2026-08-03,infra,Fly.io - maquinas Sao Paulo,187.40",
+  "2026-08-04,infra,Supabase Pro,125.00",
+  "2026-08-05,receita,Landing page RealCred,1800.00",
+  "2026-08-07,ferramenta,Figma anual,318.00",
+  "2026-08-09,infra,Cloudflare Workers,52.30",
+  "2026-08-11,receita,CRM WhatsApp - mensalidade,2200.00",
+  "2026-08-12,imposto,DAS Simples Nacional,612.85",
+  "2026-08-14,ferramenta,GitHub Copilot,104.00",
+  "2026-08-15,receita,Marvet - catalogo de mudas,3200.00",
+  "2026-08-17,infra,Dominio autarktech.com.br,64.90",
+  "2026-08-19,receita,Bia delivery - ajustes,950.00",
+  "2026-08-21,imposto,INSS,412.00",
+  "2026-08-23,infra,Upstash Redis,38.70",
+  "2026-08-25,receita,JurisIA - piloto,1500.00",
+  "2026-08-27,ferramenta,Adobe Express,89.90",
+  "2026-08-29,infra,Vercel Pro,104.50",
+  "2026-08-30,receita,Consultoria avulsa,780.00",
+].join("\n");
+
+const LOG = [
+  '177.32.44.10 - - [16/Sep/2026:08:12:03 -0300] "GET /api/agenda HTTP/1.1" 200 1842 0.042',
+  '177.32.44.10 - - [16/Sep/2026:08:12:09 -0300] "POST /api/agenda HTTP/1.1" 201 312 0.310',
+  '200.145.9.7 - - [16/Sep/2026:08:13:41 -0300] "GET /api/clientes HTTP/1.1" 200 9120 0.128',
+  '177.32.44.10 - - [16/Sep/2026:08:14:02 -0300] "GET /api/agenda HTTP/1.1" 200 1840 0.038',
+  '189.4.221.88 - - [16/Sep/2026:08:15:19 -0300] "POST /webhook/whatsapp HTTP/1.1" 500 87 2.940',
+  '200.145.9.7 - - [16/Sep/2026:08:16:33 -0300] "GET /api/agenda HTTP/1.1" 304 0 0.011',
+  '189.4.221.88 - - [16/Sep/2026:08:17:05 -0300] "POST /webhook/whatsapp HTTP/1.1" 500 87 3.120',
+  '45.177.2.19 - - [16/Sep/2026:08:18:44 -0300] "GET /admin HTTP/1.1" 403 122 0.009',
+  '177.32.44.10 - - [16/Sep/2026:08:19:21 -0300] "GET /api/relatorio HTTP/1.1" 200 44210 1.870',
+  '189.4.221.88 - - [16/Sep/2026:08:20:58 -0300] "POST /webhook/whatsapp HTTP/1.1" 200 210 0.402',
+  '45.177.2.19 - - [16/Sep/2026:08:21:30 -0300] "GET /.env HTTP/1.1" 404 0 0.004',
+  '200.145.9.7 - - [16/Sep/2026:08:22:12 -0300] "GET /api/agenda HTTP/1.1" 200 1839 0.036',
+  '45.177.2.19 - - [16/Sep/2026:08:23:01 -0300] "GET /wp-admin HTTP/1.1" 404 0 0.003',
+  '177.32.44.10 - - [16/Sep/2026:08:24:47 -0300] "GET /api/clientes HTTP/1.1" 200 9118 0.131',
+].join("\n");
+
+const EXEMPLOS = [
+  {
+    nome: "1. soma por categoria",
+    fs: ",",
+    explica: "O relatório inteiro em quatro linhas. <b>total[$2] += $4</b> é um mapa que se cria sozinho: não existe declaração, não existe inicialização em zero, não existe laço de leitura.",
+    entrada: EXTRATO,
+    programa: `NR > 1 { total[$2] += $4; n[$2]++ }
+END {
+  printf "%-12s %5s %12s\\n", "CATEGORIA", "QTD", "TOTAL"
+  for (c in total) printf "%-12s %5d %12.2f\\n", c, n[c], total[c]
+}`,
+  },
+  {
+    nome: "2. o resultado do mês",
+    fs: ",",
+    explica: "Receita menos despesa, com margem. Repare que não há conversão de tipo em lugar nenhum: AWK decide entre número e texto pelo uso.",
+    entrada: EXTRATO,
+    programa: `NR > 1 { if ($2 == "receita") receita += $4; else despesa += $4 }
+END {
+  printf "receita:  R$ %10.2f\\n", receita
+  printf "despesa:  R$ %10.2f\\n", despesa
+  printf "-----------------------\\n"
+  printf "resultado: R$ %9.2f  (margem %.1f%%)\\n", receita - despesa, 100 * (receita - despesa) / receita
+}`,
+  },
+  {
+    nome: "3. uma linha só",
+    fs: ",",
+    explica: "O caso que dá nome à página: uma linha de AWK contra o que seria um script inteiro em qualquer outra linguagem — abrir arquivo, iterar, dividir, converter, somar, imprimir.",
+    entrada: EXTRATO,
+    programa: `NR>1 && $2=="receita" { s += $4 } END { print "faturamento do mês: R$", s }`,
+  },
+  {
+    nome: "4. análise de log",
+    fs: " ",
+    explica: "Agora sem CSV: campos separados por espaço, no formato combined do Apache. O fuso no colchete conta como campo próprio — por isso o status é <b>$9</b> e não $8. Errar esse deslocamento é o bug clássico de quem processa log com AWK.",
+    entrada: LOG,
+    programa: `{ ip = $1; status = $9; tempo = $11
+  req[ip]++
+  if (status >= 400) erro[ip]++
+  if (tempo + 0 > pior) { pior = tempo + 0; piorLinha = $7 }
+}
+END {
+  printf "%-16s %5s %6s\\n", "ORIGEM", "REQS", "ERROS"
+  for (i in req) printf "%-16s %5d %6d\\n", i, req[i], erro[i]
+  printf "\\nmais lenta: %s (%.3fs)\\n", piorLinha, pior
+}`,
+  },
+  {
+    nome: "5. laço infinito",
+    perigo: true,
+    fs: ",",
+    explica: 'Um programa que nunca termina. Na thread principal isso <span class="r">travaria a aba</span> sem recuperação. Aqui ele roda num Web Worker: o cronômetro estoura em 3 segundos, o worker é morto e outro sobe no lugar — a página nem pisca.',
+    entrada: "irrelevante",
+    programa: `BEGIN { while (1) { x++ } }`,
+  },
+];
+
+// --- Worker ---------------------------------------------------------------
+
+let worker = null;
+let prontoWorker = false;
+let proximoId = 1;
+let pendente = null;
+
+function criarWorker() {
+  return new Promise((resolve, reject) => {
+    prontoWorker = false;
+    worker = new Worker("worker.js");
+
+    worker.onmessage = (e) => {
+      const m = e.data ?? {};
+      if (m.tipo === "pronto") { prontoWorker = true; resolve(); return; }
+      if (m.tipo === "falhou") { reject(new Error(m.erro)); return; }
+      if (m.tipo === "resultado" && pendente && m.id === pendente.id) {
+        clearTimeout(pendente.relogio);
+        const p = pendente;
+        pendente = null;
+        p.resolver(m);
+      }
+    };
+
+    worker.onerror = (e) => reject(new Error(e.message || "o worker falhou"));
+  });
+}
+
+const TETO_MS = 3000;
+
+function executarNoWorker(programa, entrada, separador) {
+  return new Promise((resolve) => {
+    const id = proximoId++;
+
+    // O estouro nao "cancela" nada: ele MATA o worker. E o unico jeito, porque
+    // o interpretador la dentro nao tem como ser interrompido.
+    const relogio = setTimeout(async () => {
+      pendente = null;
+      worker.terminate();
+      $("saida").className = "saida-awk erro";
+      $("saida").textContent =
+        `O programa passou de ${TETO_MS / 1000} segundos e foi interrompido.\n\n` +
+        `O worker foi encerrado e um novo está subindo — a página continuou respondendo o tempo todo.`;
+      $("rodar").disabled = true;
+      await criarWorker();
+      $("rodar").disabled = false;
+      resolve(null);
+    }, TETO_MS);
+
+    pendente = { id, relogio, resolver: resolve };
+    worker.postMessage({ tipo: "rodar", id, programa, entrada, separador });
+  });
+}
+
+async function rodar() {
+  if (!prontoWorker) return;
+
+  const programa = $("programa").value;
+  const entrada = $("entrada").value;
+
+  $("rodar").disabled = true;
+  $("saida").className = "saida-awk";
+  $("saida").textContent = "executando…";
+
+  const r = await executarNoWorker(programa, entrada, $("fs").value);
+  if (!r) return; // estouro: a mensagem ja foi escrita
+
+  $("rodar").disabled = false;
+
+  if (r.erro) {
+    $("saida").className = "saida-awk erro";
+    $("saida").textContent = r.erro;
+  } else {
+    $("saida").className = "saida-awk";
+    $("saida").textContent = r.saida || "(o programa não imprimiu nada)";
+  }
+
+  $("k-prog").textContent = programa.replace(/\s+/g, " ").trim().length;
+  $("k-entrada").textContent = entrada.split("\n").length;
+  $("k-saida").textContent = r.linhas ?? 0;
+  $("k-ms").textContent = (r.ms ?? "0") + " ms";
+}
+
+// --- Interface ------------------------------------------------------------
+
+function aplicar(ex) {
+  $("programa").value = ex.programa;
+  $("entrada").value = ex.entrada;
+  $("fs").value = ex.fs;
+  $("explica").innerHTML = ex.explica;
+  $("explica").className = "explica" + (ex.perigo ? " perigo" : "");
+  rodar();
+}
+
+(function montar() {
+  const caixa = $("exemplos");
+  EXEMPLOS.forEach((ex, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = ex.nome;
+    if (ex.perigo) b.classList.add("perigo");
+    b.addEventListener("click", () => {
+      caixa.querySelectorAll("button").forEach((o) => o.classList.remove("ativo"));
+      b.classList.add("ativo");
+      aplicar(ex);
+    });
+    if (i === 0) b.classList.add("ativo");
+    caixa.appendChild(b);
+  });
+})();
+
+$("rodar").addEventListener("click", rodar);
+
+try {
+  await criarWorker();
+  $("rodar").disabled = false;
+  aplicar(EXEMPLOS[0]);
+} catch (e) {
+  $("explica").innerHTML = `<span style="color:var(--rose)">Não consegui carregar o AWK: ${e.message}</span>`;
+  console.error(e);
+}
+</script>
+</body>
+</html>
