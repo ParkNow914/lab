@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Troca a quente de código em Erlang — Laboratório Autark</title>
+<meta name="description" content="Um processo com estado recebe uma versão nova do próprio código enquanto roda: muda de comportamento, migra o formato do estado e não perde o que já tinha. Gravação real de terminal.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.8.0/dist/bundle/asciinema-player.css">
+<style>
+  .player {
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+    background: #0b0e14;
+  }
+  .player .ap-player { font-size: 13px; }
+
+  .marcos { list-style: none; margin: 16px 0 0; padding: 0; }
+  .marcos li {
+    display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: baseline;
+    padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.05);
+  }
+  .marcos li:last-child { border-bottom: none; }
+  .marcos button.t {
+    font-family: var(--font-mono); font-size: .72rem; padding: 3px 7px;
+    color: var(--cyan); border-color: rgba(103,232,249,.28);
+  }
+  .marcos .d { font-size: .85rem; color: var(--text-muted); line-height: 1.6; }
+  .marcos .d b { color: var(--text); }
+
+  .codigo {
+    margin: 0; padding: 14px 16px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: .76rem; line-height: 1.65;
+    color: var(--text-muted); overflow-x: auto;
+  }
+  .codigo .g { color: var(--accent); }
+  .codigo .c { color: var(--text-dim); }
+  .codigo .k { color: var(--cyan); }
+
+  .abas { display: flex; gap: 8px; margin-bottom: 12px; }
+  .abas button { font-family: var(--font-mono); font-size: .74rem; }
+  .abas button.sel { color: var(--accent); border-color: rgba(52,211,153,.45); background: rgba(52,211,153,.1); }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 13px; line-height: 1.75; }
+  .dica b { color: var(--accent); }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .78rem; }
+
+  .aviso-grav {
+    margin-top: 14px; padding: 11px 14px; border-radius: 9px;
+    background: rgba(103,232,249,.06); border: 1px solid rgba(103,232,249,.22);
+    color: var(--text-muted); font-size: .8rem; line-height: 1.65;
+  }
+  .aviso-grav b { color: var(--cyan); }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">Erlang</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/erlang-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>O programa recebe uma versão nova de si mesmo sem parar.</h1>
+  <p class="pitch">
+    Um processo está contando. Ele tem 12 guardados. Sem reiniciar nada, o módulo é
+    recompilado com regras diferentes <em>e com outro formato de estado</em> — e na
+    mensagem seguinte ele já está rodando o código novo, com os 12 intactos. É a coisa
+    que o Erlang faz há trinta anos e que quase nenhuma outra plataforma faz até hoje.
+  </p>
+
+  <div class="meta">
+    <span>Erlang/OTP 27</span>
+    <span>troca a quente</span>
+    <span>processos</span>
+    <span>migração de estado</span>
+    <span>gravação de terminal</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    Atualizar sistema no ar é, para quase todo mundo, sinônimo de <em>subir uma
+    instância nova e matar a antiga</em> — e de perder tudo que estava na memória. No
+    Erlang isso é uma chamada de função. Esta é a única demo do laboratório que não
+    roda no seu navegador, porque o assunto dela <em>é</em> a máquina virtual: então é
+    uma gravação do terminal de verdade, com o carimbo de tempo de cada tecla.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel" style="margin-bottom:20px">
+      <h2>A sessão <span class="hint">34 segundos, sem corte</span></h2>
+      <div class="player" id="player"></div>
+
+      <ul class="marcos">
+        <li>
+          <button class="t" data-t="4">0:04</button>
+          <span class="d"><b>O contador sobe para 12.</b> Um processo comum, guardando o total dentro do próprio laço de mensagens.</span>
+        </li>
+        <li>
+          <button class="t" data-t="11">0:11</button>
+          <span class="d"><b>O diff das duas versões.</b> A versão 2 recusa número negativo, conta operações e troca o estado de <code>12</code> para <code>{12, 0}</code>.</span>
+        </li>
+        <li>
+          <button class="t" data-t="20">0:20</button>
+          <span class="d"><b><code>c(contador)</code> recompila com o processo vivo.</b> Nenhum reinício, nenhuma conexão derrubada.</span>
+        </li>
+        <li>
+          <button class="t" data-t="23">0:23</button>
+          <span class="d"><b>A troca acontece na mensagem seguinte.</b> A soma roda no código velho; a migração do estado, no novo — na mesma volta do laço.</span>
+        </li>
+        <li>
+          <button class="t" data-t="28">0:28</button>
+          <span class="d"><b>15 preservados e o negativo recusado.</b> Mesmo processo, mesmo PID, mesmo estado — comportamento outro.</span>
+        </li>
+      </ul>
+
+      <div class="aviso-grav">
+        <b>O que é roteiro e o que é real.</b> Os comandos são digitados por um script
+        para a sessão caber em meio minuto. Tudo que aparece como resposta é a máquina
+        virtual do Erlang rodando de verdade, gravada com asciinema — inclusive os PIDs,
+        que mudam a cada gravação.
+      </div>
+    </section>
+
+    <div class="duas">
+      <section class="painel">
+        <h2>O módulo <span class="hint">as duas versões</span></h2>
+
+        <div class="abas">
+          <button class="sel" data-v="1">versão 1</button>
+          <button data-v="2">versão 2</button>
+        </div>
+
+        <pre class="codigo" id="fonte"></pre>
+      </section>
+
+      <section class="painel">
+        <h2>Por que isto funciona <span class="hint">e o detalhe que decide</span></h2>
+
+        <p class="dica">
+          <b>A chamada qualificada.</b> O laço termina em <code>?MODULE:loop(...)</code>,
+          com o nome do módulo na frente. Um <code>loop(...)</code> seco seria uma chamada
+          local: a máquina virtual saltaria para dentro da mesma versão do código, e o
+          processo continuaria rodando a versão com que nasceu <em>para sempre</em>, por
+          mais vezes que o módulo fosse recompilado. Escrever o módulo na frente manda
+          procurar a versão atual a cada volta. A troca a quente inteira mora nessa
+          fresta.
+        </p>
+
+        <p class="dica">
+          <b>A migração de estado é o caso difícil.</b> Mudar regra é fácil; mudar o
+          formato do que já está na memória, não. Quando a versão 2 entra, existe um
+          processo lá fora segurando um inteiro, e o código novo espera uma tupla. Sem a
+          cláusula <code>loop(Total) when is_integer(Total)</code>, a troca daria
+          <code>function_clause</code> e mataria o processo — a atualização teria feito
+          exatamente o estrago que veio evitar.
+        </p>
+
+        <p class="dica">
+          <b>É isso que <code>code_change/3</code> faz.</b> Num <code>gen_server</code> a
+          migração vive num callback que o OTP chama na hora certa. Aqui ela está escrita
+          à mão, como uma cláusula a mais, porque o ponto da página é deixá-la visível em
+          vez de escondida atrás da abstração.
+        </p>
+
+        <p class="dica">
+          <b>Duas versões, não mais.</b> A máquina virtual mantém no máximo o código
+          <em>atual</em> e o <em>antigo</em> de cada módulo. Recarregar uma terceira vez
+          mata qualquer processo que ainda esteja executando a mais velha — o que
+          transforma "atualizei duas vezes rápido demais" num jeito real de derrubar
+          processo, e é por isso que sistema sério faz isso com
+          <code>release_handler</code>, não na mão.
+        </p>
+      </section>
+    </div>
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/blob/main/projects/erlang-puro/contador_v2.erl">Ler o módulo (v2)</a>
+  </div>
+</div>
+
+<!-- O bundle do asciinema-player e IIFE, nao modulo ES: precisa entrar por
+     script classico e aparece como global. Importar com `import *` devolve um
+     objeto vazio, e o erro so aparece quando .create e chamado. -->
+<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.8.0/dist/bundle/asciinema-player.min.js"></script>
+<script>
+const player = AsciinemaPlayer.create("./sessao.cast", document.getElementById("player"), {
+  cols: 100,
+  rows: 28,
+  idleTimeLimit: 2,
+  theme: "dracula",
+  fit: "width",
+  // Sem autoplay: a pagina nao deve comecar a se mexer sozinha enquanto
+  // alguem ainda esta lendo o titulo.
+  autoPlay: false,
+  preload: true,
+  // Sem poster o player abre com um terminal em branco, e um retangulo vazio
+  // nao convida ninguem a apertar play. O quadro do segundo 31 ja mostra a
+  // troca tendo acontecido — e o fim da historia servindo de capa.
+  poster: "npt:0:31",
+});
+
+// Os marcos sao botoes de verdade, nao legenda: clicar salta a gravacao.
+for (const b of document.querySelectorAll(".marcos button.t")) {
+  b.addEventListener("click", () => {
+    player.seek(Number(b.dataset.t));
+    player.play();
+  });
+}
+
+// --- codigo das duas versoes, lido dos proprios arquivos --------------------
+// Ler do arquivo em vez de repetir o codigo aqui evita a pior forma de
+// documentacao errada: a que diverge do que de fato rodou na gravacao.
+
+const fonte = document.getElementById("fonte");
+const cache = {};
+
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+function pintar(codigo) {
+  return esc(codigo)
+    .replace(/^(%%.*)$/gm, '<span class="c">$1</span>')
+    .replace(/\b(receive|end|after|when|spawn|register|fun|module|export)\b/g, '<span class="k">$1</span>')
+    .replace(/(\?MODULE:loop)/g, '<span class="g">$1</span>');
+}
+
+async function mostrar(v) {
+  if (!cache[v]) {
+    const r = await fetch(`./contador_v${v}.erl`);
+    cache[v] = await r.text();
+  }
+  fonte.innerHTML = pintar(cache[v]);
+}
+
+for (const b of document.querySelectorAll(".abas button")) {
+  b.addEventListener("click", () => {
+    for (const o of document.querySelectorAll(".abas button")) o.classList.toggle("sel", o === b);
+    mostrar(b.dataset.v);
+  });
+}
+
+mostrar("1");
+</script>
+</body>
+</html>

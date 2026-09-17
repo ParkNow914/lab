@@ -430,14 +430,14 @@
       "kind": "pure",
       "framework": null,
       "title": "Troca a quente de código em execução",
-      "pitch": "Um servidor no ar tem a lógica substituída sem derrubar conexão nem perder estado — atualização com o sistema rodando.",
-      "why": "Hot code swapping é o recurso lendário do Erlang que sustentou centrais telefônicas com nove noves de disponibilidade. Vale mostrar acontecendo.",
+      "pitch": "Um processo com 12 guardados recebe uma versão nova do próprio código: muda de regra, muda o formato do estado e não perde o que já tinha. Sem reiniciar nada.",
+      "why": "Atualizar sistema no ar é, para quase todo mundo, subir instância nova e matar a antiga — perdendo tudo que estava na memória. No Erlang é uma chamada de função, e o caso difícil não é trocar a regra: é migrar o estado que já está na mão de um processo vivo.",
       "runtime": "cast",
-      "toolchain": "Erlang/OTP + rebar3",
+      "toolchain": "Erlang/OTP 27",
       "status": "planned",
       "tags": [
         "hot swap",
-        "telecom",
+        "migração de estado",
         "disponibilidade"
       ]
     },

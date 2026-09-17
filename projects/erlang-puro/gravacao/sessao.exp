@@ -1,0 +1,85 @@
+#!/usr/bin/expect -f
+#
+# Dirige um shell Erlang de verdade. Nada aqui e encenado: o expect digita, e
+# quem responde e a maquina virtual. O unico teatro e o ritmo — as pausas
+# existem para a gravacao ser legivel.
+#
+# Duas armadilhas que custaram uma regravacao cada:
+#
+# 1. stty_init "-echo". Sem isso cada comando aparece DUAS vezes: uma pelo eco
+#    do pty e outra pelo editor de linha do proprio shell Erlang, que redesenha
+#    o que leu. Desligar o eco do pty deixa so a versao do shell.
+#
+# 2. Narracao em ASCII. A imagem nao tem locale UTF-8, e um travessao vira
+#    lixo no meio da gravacao.
+
+set timeout 30
+set send_slow {1 .035}
+set stty_init "-echo rows 28 cols 100"
+
+proc narrar {texto} {
+    send_user "\r\n\033\[38;5;42m### $texto\033\[0m\r\n\r\n"
+    sleep 1.5
+}
+
+proc digitar {linha} {
+    sleep 0.8
+    send -s -- "$linha\r"
+}
+
+# O shell do Erlang numera os prompts: 1>, 2>, 3>... Esperar pelo numero certo
+# e o que garante que cada comando so sai depois da resposta do anterior.
+proc prompt {n} {
+    expect -re "\r\n$n> $" {}
+}
+
+narrar "Um contador guardando estado dentro de um processo."
+
+# -noecho: sem ele a linha "spawn erl" entra na gravacao.
+spawn -noecho erl
+expect -re "\r\n1> $"
+
+digitar "c(contador)."
+prompt 2
+
+digitar "contador:iniciar()."
+prompt 3
+
+digitar "contador:somar(5), contador:somar(7), contador:ler()."
+prompt 4
+
+narrar "12 na conta. Agora a versao 2, com esse processo ainda vivo."
+
+# ~ts e nao ~s: os arquivos tem acento, e os:cmd devolve codepoints acima de
+# 255. Com ~s o io:format recusa a lista inteira.
+digitar "io:format(\"~ts\",\[os:cmd(\"diff -u contador_v?.erl|tail -n+3\")\])."
+prompt 5
+
+narrar "Recusa negativo e conta operacoes: o FORMATO do estado mudou."
+
+digitar "os:cmd(\"cp contador_v2.erl contador.erl\"), c(contador)."
+prompt 6
+
+narrar "Recompilado com o processo no ar. Nada foi reiniciado."
+
+digitar "contador:somar(3)."
+prompt 7
+
+narrar "A soma rodou no codigo velho e a migracao no novo, na mesma volta."
+
+digitar "contador:ler()."
+prompt 8
+
+narrar "15: os 12 de antes atravessaram a troca. E a regra nova?"
+
+digitar "contador:somar(-4), contador:ler()."
+prompt 9
+
+narrar "Recusado. Mesmo processo, mesmo estado, outro codigo."
+
+digitar "process_info(whereis(contador), \[status, message_queue_len\])."
+prompt 10
+
+sleep 2.5
+digitar "q()."
+expect eof

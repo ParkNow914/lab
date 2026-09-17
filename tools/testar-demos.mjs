@@ -28,6 +28,11 @@ const TIPOS = {
   ".webp": "image/webp",
   ".woff2": "font/woff2",
   ".data": "application/octet-stream",
+  // Gravacao de terminal e fonte exibido na propria pagina: sem o tipo
+  // certo o navegador ainda le, mas o teste deixaria de reproduzir o que
+  // o GitHub Pages serve de fato.
+  ".cast": "text/plain; charset=utf-8",
+  ".erl": "text/plain; charset=utf-8",
 };
 
 // Servidor minimo: precisa mandar application/wasm corretamente, senao
@@ -120,6 +125,18 @@ for (const demo of demos) {
 
     const titulo = await pagina.title();
     if (!titulo || /^\s*$/.test(titulo)) erros.push("sem <title>");
+
+    // Demo de gravacao: o player do asciinema falha em silencio. Ele cria a
+    // div, nao consegue ler o .cast e fica com zero de largura — e a pagina
+    // continua cheia de texto, entao a checagem de palco vazio nao pega.
+    // Exigir um terminal com tamanho e o unico jeito de saber que o visitante
+    // teria algo para assistir.
+    if (demo.runtime === "cast") {
+      const caixa = await pagina.locator("#player .ap-terminal").first().boundingBox().catch(() => null);
+      if (!caixa || caixa.width < 200 || caixa.height < 80) {
+        erros.push(`o player nao desenhou o terminal (${caixa ? `${Math.round(caixa.width)}x${Math.round(caixa.height)}` : "ausente"})`);
+      }
+    }
   } catch (e) {
     erros.push(String(e.message ?? e));
   }
