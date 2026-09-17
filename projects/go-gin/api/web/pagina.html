@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Erro de validação que serve para alguma coisa — Laboratório Autark</title>
+<meta name="description" content="API em Go com Gin: cadeia de middleware visível e validação que devolve o campo, a regra e uma frase em português — em vez de 'dados inválidos'.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="https://autarktech.com.br/assets/fonts/fonts.css">
+<link rel="stylesheet" href="https://autarktech.com.br/lab/demo.css">
+<style>
+  textarea#corpo { min-height: 230px; font-size: .8rem; line-height: 1.6; }
+
+  .exemplos { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .exemplos button { font-size: .75rem; padding: 6px 11px; font-family: var(--font-mono); }
+  .exemplos button.ativo { background: var(--accent-soft); border-color: rgba(52,211,153,.32); color: var(--accent); }
+  .exemplos button.ruim { color: var(--rose); border-color: rgba(251,113,133,.28); }
+  .exemplos button.ruim.ativo { background: rgba(251,113,133,.12); color: var(--rose); border-color: rgba(251,113,133,.4); }
+
+  .explica {
+    font-size: .85rem; color: var(--text-muted); margin: 0 0 12px;
+    padding: 11px 14px; background: var(--surface); border-radius: 9px;
+    border-left: 2px solid var(--accent);
+  }
+  .explica.ruim { border-left-color: var(--rose); }
+
+  .status { font-family: var(--font-mono); font-size: .8rem; padding: 9px 13px; border-radius: 8px; margin-bottom: 12px; display: inline-block; }
+  .status.s2 { background: var(--accent-soft); border: 1px solid rgba(52,211,153,.28); color: var(--accent); }
+  .status.s4 { background: rgba(251,113,133,.08); border: 1px solid rgba(251,113,133,.3); color: var(--rose); }
+  .status.s5 { background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.3); color: var(--amber); }
+
+  .problemas { list-style: none; margin: 0 0 14px; padding: 0; }
+  .problemas li {
+    font-family: var(--font-mono); font-size: .78rem; padding: 8px 12px; border-radius: 8px;
+    margin-bottom: 5px; background: rgba(251,113,133,.06); border: 1px solid rgba(251,113,133,.25);
+    color: var(--rose);
+  }
+
+  .cadeia { list-style: none; margin: 0; padding: 0; }
+  .cadeia li {
+    display: grid; grid-template-columns: 110px 1fr 70px; gap: 10px; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.05);
+  }
+  .cadeia li:last-child { border-bottom: none; }
+  .c-nome { font-family: var(--font-mono); font-size: .78rem; color: var(--accent); }
+  .c-nota { font-size: .76rem; color: var(--text-dim); }
+  .c-us { font-family: var(--font-mono); font-size: .72rem; color: var(--text-muted); text-align: right; }
+
+  pre.json {
+    background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px; font-family: var(--font-mono); font-size: .74rem; line-height: 1.6;
+    overflow: auto; margin: 0; max-height: 300px; white-space: pre-wrap; color: var(--text-muted);
+  }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; line-height: 1.7; }
+  .dica b { color: var(--accent); }
+  .dica .r { color: var(--rose); font-weight: 600; }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="https://autarktech.com.br/lab/">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">Go · Gin</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/go-gin">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>“Dados inválidos” não é mensagem de erro</h1>
+  <p class="pitch">
+    Mande um produto com campo errado e veja o que volta: <strong>qual campo, qual regra,
+    e o que fazer</strong> — uma frase por problema, todos de uma vez. É a diferença entre
+    uma API que dá para consumir e uma que obriga a adivinhar. E a resposta ainda traz a
+    cadeia de middleware que a requisição atravessou.
+  </p>
+
+  <div class="meta">
+    <span>Go</span>
+    <span>Gin</span>
+    <span>validator/v10</span>
+    <span>função serverless na Vercel</span>
+    <span>binário único</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    Gin é o framework HTTP mais usado em Go. Mas o que separa uma API boa de uma ruim
+    raramente é o framework: é o que ela devolve quando algo dá errado. Erro genérico
+    empurra o custo para quem consome — e quem consome costuma ser você mesmo, seis meses
+    depois.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>Exemplos</h2>
+      <div class="exemplos" id="exemplos"></div>
+      <p class="explica" id="explica">—</p>
+    </section>
+
+    <div class="duas">
+
+      <section class="painel">
+        <h2>A requisição <span class="hint">POST /api/produtos</span></h2>
+        <label for="corpo">corpo JSON</label>
+        <textarea id="corpo" spellcheck="false" aria-label="Corpo da requisição"></textarea>
+        <div class="linha" style="margin-top:12px">
+          <button class="pri" id="enviar">Enviar</button>
+          <button id="listar">GET /api/produtos</button>
+          <button id="explodir" style="color:var(--amber);border-color:rgba(251,191,36,.3)">GET /api/explodir</button>
+        </div>
+      </section>
+
+      <section class="painel">
+        <h2>A resposta</h2>
+        <div id="status"></div>
+        <ul class="problemas" id="problemas"></ul>
+
+        <h2 style="margin-top:8px">A cadeia de middleware <span class="hint">na ordem em que rodou</span></h2>
+        <ul class="cadeia" id="cadeia"></ul>
+
+        <h2 style="margin-top:20px">Corpo completo</h2>
+        <pre class="json" id="json">—</pre>
+      </section>
+
+    </div>
+
+    <section class="painel">
+      <h2>As regras, declaradas no próprio tipo</h2>
+      <p class="dica">
+        Em Go a validação mora na <em>struct tag</em>, ao lado do campo. Não há esquema
+        separado para sair de sincronia com o modelo.
+      </p>
+      <pre class="json">type Produto struct {
+    Nome      string  `binding:"required,min=3,max=80"`
+    SKU       string  `binding:"required,alphanum,len=8"`
+    Preco     float64 `binding:"required,gt=0,lte=1000000"`
+    Estoque   int     `binding:"gte=0"`
+    Categoria string  `binding:"required,oneof=servico produto assinatura"`
+    Email     string  `binding:"required,email"`
+}</pre>
+      <p class="dica" style="margin-top:14px">
+        O <code>validator</code> devolve um erro por campo, mas a mensagem crua dele é
+        ilegível: <code>Key: 'Produto.SKU' Error:Field validation for 'SKU' failed on the
+        'len' tag</code>. A função <code>traduzir</code> transforma isso em
+        <b>“sku: precisa ter exatamente 8 caracteres”</b>. São trinta linhas que mudam a
+        experiência de quem integra.
+      </p>
+      <p class="dica">
+        <b>O botão amarelo dispara um panic de propósito.</b> Sem o middleware de
+        recuperação, o cliente receberia uma resposta <span class="r">vazia</span>, sem
+        pista nenhuma. Com ele, volta um 500 explicando o que aconteceu — e o processo
+        continua de pé.
+      </p>
+      <p class="dica">
+        <b>Uma honestidade sobre o limite:</b> o rate limit aqui é só um selo na cadeia. Em
+        função serverless o estado não sobrevive entre instâncias, então limite de verdade
+        mora no Redis ou na borda. Deixar uma versão em memória que “funciona” seria
+        mentira — e mentira que só aparece em produção, sob carga.
+      </p>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="https://autarktech.com.br/lab/">Laboratório</a>
+    <a href="https://autarktech.com.br/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/go-gin">Ver o código</a>
+  </div>
+</div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+const EXEMPLOS = [
+  {
+    nome: "tudo certo",
+    explica: "Um produto válido. Repare na cadeia: quatro middlewares rodam antes do handler, cada um com o próprio tempo.",
+    corpo: {
+      nome: "Consultoria de automação",
+      sku: "SRV00042",
+      preco: 2500,
+      estoque: 0,
+      categoria: "servico",
+      email_responsavel: "alisson@autarktech.com.br",
+    },
+  },
+  {
+    nome: "vários erros",
+    ruim: true,
+    explica: "Cinco campos errados ao mesmo tempo. A API devolve <b>todos</b> de uma vez — e não só o primeiro, que obrigaria a corrigir um por requisição.",
+    corpo: {
+      nome: "AB",
+      sku: "abc-123",
+      preco: -10,
+      estoque: -5,
+      categoria: "outra_coisa",
+      email_responsavel: "não é email",
+    },
+  },
+  {
+    nome: "campo faltando",
+    ruim: true,
+    explica: "Metade do corpo ausente. Cada obrigatório vira uma linha própria, dizendo o nome do campo.",
+    corpo: { nome: "Produto incompleto", preco: 100 },
+  },
+  {
+    nome: "JSON quebrado",
+    ruim: true,
+    explica: "Nem chega na validação: o corpo não é JSON. A resposta diz isso, em vez de devolver um 500 genérico.",
+    cru: '{ "nome": "faltou fechar a chave", "preco": 10',
+  },
+];
+
+function mostrarResposta(codigo, dados) {
+  const classe = codigo >= 500 ? "s5" : codigo >= 400 ? "s4" : "s2";
+  $("status").innerHTML = `<span class="status ${classe}">HTTP ${codigo}</span>`;
+
+  $("problemas").innerHTML = (dados.problemas ?? [])
+    .map((p) => `<li>${esc(p)}</li>`).join("");
+
+  const trace = dados.trace ?? [];
+  $("cadeia").innerHTML = trace.length
+    ? trace.map((e) => `
+        <li>
+          <span class="c-nome">${esc(e.nome)}</span>
+          <span class="c-nota">${esc(e.nota)}</span>
+          <span class="c-us">${e.us} µs</span>
+        </li>`).join("")
+    : `<li><span class="c-nota">(esta resposta não trouxe cadeia — o panic interrompeu antes)</span></li>`;
+
+  $("json").textContent = JSON.stringify(dados, null, 2);
+}
+
+async function enviar() {
+  const corpo = $("corpo").value;
+  try {
+    const r = await fetch("/api/produtos", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: corpo,
+    });
+    mostrarResposta(r.status, await r.json());
+  } catch (e) {
+    $("status").innerHTML = `<span class="status s5">falhou</span>`;
+    $("json").textContent = String(e.message ?? e);
+  }
+}
+
+async function chamar(rota) {
+  try {
+    const r = await fetch(rota);
+    mostrarResposta(r.status, await r.json());
+  } catch (e) {
+    $("status").innerHTML = `<span class="status s5">falhou</span>`;
+    $("json").textContent = String(e.message ?? e);
+  }
+}
+
+function aplicar(ex) {
+  $("corpo").value = ex.cru ?? JSON.stringify(ex.corpo, null, 2);
+  $("explica").innerHTML = ex.explica;
+  $("explica").className = "explica" + (ex.ruim ? " ruim" : "");
+  enviar();
+}
+
+(function montar() {
+  const caixa = $("exemplos");
+  EXEMPLOS.forEach((ex, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = ex.nome;
+    if (ex.ruim) b.classList.add("ruim");
+    b.addEventListener("click", () => {
+      caixa.querySelectorAll("button").forEach((o) => o.classList.remove("ativo"));
+      b.classList.add("ativo");
+      aplicar(ex);
+    });
+    if (i === 0) b.classList.add("ativo");
+    caixa.appendChild(b);
+  });
+})();
+
+$("enviar").addEventListener("click", enviar);
+$("listar").addEventListener("click", () => chamar("/api/produtos"));
+$("explodir").addEventListener("click", () => chamar("/api/explodir"));
+
+aplicar(EXEMPLOS[0]);
+</script>
+</body>
+</html>
