@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSL de regras de negócio em Ruby — Laboratório Autark</title>
+<meta name="description" content="Uma linguagem de regras escrita quase em português, que é Ruby dobrado por metaprogramação — com o Ruby 3.4 de verdade rodando no navegador.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  textarea#regras { min-height: 330px; font-size: .8rem; line-height: 1.6; }
+  textarea#pedido { min-height: 190px; font-size: .78rem; }
+
+  .exemplos { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .exemplos button { font-size: .75rem; padding: 6px 11px; font-family: var(--font-mono); }
+  .exemplos button.ativo { background: var(--accent-soft); border-color: rgba(52,211,153,.32); color: var(--accent); }
+  .exemplos button.quebra { color: var(--rose); border-color: rgba(251,113,133,.28); }
+  .exemplos button.quebra.ativo { background: rgba(251,113,133,.12); color: var(--rose); border-color: rgba(251,113,133,.4); }
+
+  .explica {
+    font-size: .85rem; color: var(--text-muted); margin: 0 0 12px;
+    padding: 11px 14px; background: var(--surface); border-radius: 9px;
+    border-left: 2px solid var(--accent);
+  }
+  .explica.quebra { border-left-color: var(--rose); }
+
+  .conta { font-family: var(--font-mono); font-size: .86rem; }
+  .conta .linha-conta { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.05); color: var(--text-muted); }
+  .conta .linha-conta.total {
+    border-bottom: none; padding-top: 12px; margin-top: 6px; border-top: 1px solid var(--border);
+    font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; color: var(--text); letter-spacing: -.02em;
+  }
+  .conta .linha-conta.total .v { color: var(--accent); }
+  .conta .desc .v { color: var(--amber); }
+
+  .regras-lista { list-style: none; margin: 0 0 14px; padding: 0; font-family: var(--font-mono); font-size: .76rem; }
+  .regras-lista li { padding: 7px 11px; border-radius: 7px; margin-bottom: 5px; border: 1px solid var(--border); color: var(--text-dim); }
+  .regras-lista li.disparou { background: var(--accent-soft); border-color: rgba(52,211,153,.3); color: var(--accent); }
+  .regras-lista li .marca { margin-right: 8px; font-weight: 700; }
+
+  .avisos { list-style: none; margin: 12px 0 0; padding: 0; font-size: .8rem; }
+  .avisos li { padding: 8px 11px; border-radius: 7px; margin-bottom: 5px; background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.25); color: var(--amber); }
+
+  .erro-rb {
+    padding: 11px 13px; border-radius: 9px; background: rgba(251,113,133,.07);
+    border: 1px solid rgba(251,113,133,.3); color: var(--rose);
+    font-family: var(--font-mono); font-size: .76rem; margin-bottom: 12px; white-space: pre-wrap;
+  }
+
+  .bloqueado-faixa {
+    padding: 11px 14px; border-radius: 9px; margin-bottom: 14px;
+    background: rgba(251,113,133,.1); border: 1px solid rgba(251,113,133,.35);
+    color: var(--rose); font-weight: 600; font-size: .88rem;
+  }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+
+  pre.fonte-rb {
+    background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px; font-size: .73rem; line-height: 1.55; overflow: auto; margin: 0;
+    max-height: 480px; color: var(--text-muted);
+  }
+  pre.fonte-rb .c { color: var(--text-dim); font-style: italic; }
+  pre.fonte-rb .k { color: var(--cyan); }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">Ruby</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/ruby-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Uma linguagem que é Ruby disfarçado</h1>
+  <p class="pitch">
+    As regras ao lado parecem uma linguagem própria. <strong>Não são.</strong> É Ruby,
+    dobrado com <code>instance_eval</code>, <code>method_missing</code> e blocos até
+    parecer outra coisa. Não existe parser aqui — e é exatamente por isso que
+    <code>has_many :pedidos</code> e <code>validates :email</code> existem no Rails.
+  </p>
+
+  <div class="meta">
+    <span>Ruby 3.4</span>
+    <span>ruby.wasm</span>
+    <span>DSL interna</span>
+    <span>metaprogramação</span>
+    <span>0 dependências</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    Ruby é a melhor linguagem do mundo para criar DSL. Quase todo portfólio mostra um
+    CRUD em Rails; quase nenhum mostra a mecânica que torna o Rails possível. Escrever
+    a regra de negócio numa linguagem que o próprio negócio consegue ler é a diferença
+    entre código que envelhece bem e código que só o autor entende.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>Cenários</h2>
+      <div class="exemplos" id="exemplos"></div>
+      <p class="explica" id="explica">Baixando o Ruby…</p>
+      <div class="linha">
+        <button class="pri" id="rodar" disabled>Avaliar regras</button>
+        <span style="font-size:.74rem;color:var(--text-dim);align-self:center" id="versao"></span>
+      </div>
+    </section>
+
+    <div class="duas">
+
+      <section class="painel">
+        <h2>As regras <span class="hint">isto é Ruby</span></h2>
+        <textarea id="regras" spellcheck="false" aria-label="Regras em Ruby"></textarea>
+
+        <h2 style="margin-top:18px">O pedido <span class="hint">JSON</span></h2>
+        <textarea id="pedido" spellcheck="false" aria-label="Pedido em JSON"></textarea>
+      </section>
+
+      <section class="painel">
+        <h2>O resultado</h2>
+        <div id="saida"><p class="dica">—</p></div>
+      </section>
+
+    </div>
+
+    <section class="painel">
+      <h2>Como o truque funciona</h2>
+      <p class="dica">
+        <b>instance_eval</b> executa um bloco trocando o <code>self</code>. É por isso que
+        <code>regra</code> só existe dentro de <code>Regras.definir</code>, e
+        <code>quando</code>/<code>entao</code> só existem dentro de <code>regra</code> —
+        sem nenhuma variável global e sem poluir nada.
+      </p>
+      <p class="dica">
+        <b>method_missing</b> resolve <code>cliente</code> e <code>total</code> na hora da
+        chamada, contra o pedido. Eles não estão declarados em lugar nenhum. E o par
+        obrigatório <code>respond_to_missing?</code> está lá: sem ele,
+        <code>respond_to?</code> mentiria — é o erro clássico de quem aprendeu
+        metaprogramação pela metade.
+      </p>
+      <p class="dica">
+        <b>Blocos</b> guardam a condição <em>sem executá-la</em>.
+        <code>quando { total > 500 }</code> não compara nada na hora da definição: guarda
+        o código para rodar depois, com outro <code>self</code>.
+      </p>
+      <details>
+        <summary style="cursor:pointer;font-size:.82rem;color:var(--accent);margin-bottom:10px">Ver o motor inteiro (dsl.rb)</summary>
+        <pre class="fonte-rb" id="fonte">carregando…</pre>
+      </details>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/ruby-puro">Ler o dsl.rb</a>
+  </div>
+</div>
+
+<script type="module">
+import { DefaultRubyVM } from "https://cdn.jsdelivr.net/npm/@ruby/wasm-wasi@2.10.1/dist/browser/+esm";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const dinheiro = (n) => Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const REGRAS_BASE = `Regras.definir do
+
+  regra "desconto de cliente VIP" do
+    quando { cliente.vip? && total > 500 }
+    entao  { aplicar_desconto 10 }
+  end
+
+  regra "frete grátis acima de mil" do
+    quando { total >= 1000 }
+    entao  { frete_gratis! }
+  end
+
+  regra "primeira compra" do
+    quando { cliente.pedidos_anteriores == 0 }
+    entao  do
+      aplicar_desconto 5
+      avisar "Cupom de boas-vindas aplicado."
+    end
+  end
+
+  regra "muitos itens" do
+    quando { itens >= 10 }
+    entao  { avisar "Pedido grande: separação em duas caixas." }
+  end
+
+  regra "entrega no interior" do
+    quando { entrega.uf != "SP" }
+    entao  { cobrar_frete 79.90 }
+  end
+
+end`;
+
+/**
+ * Insere uma regra antes do `end` que FECHA o bloco `Regras.definir`.
+ *
+ * `REGRAS_BASE.replace("end", ...)` não serve: `String.replace` com texto
+ * troca a PRIMEIRA ocorrência, e a primeira `end` está dentro da primeira
+ * regra. A regra extra caía lá dentro e o Ruby reclamava de `regra` indefinido
+ * numa instância de Regra.
+ */
+function comRegraExtra(extra) {
+  const i = REGRAS_BASE.lastIndexOf("\nend");
+  return REGRAS_BASE.slice(0, i) + "\n" + extra + "\n" + REGRAS_BASE.slice(i);
+}
+
+const EXEMPLOS = [
+  {
+    nome: "VIP com pedido grande",
+    explica: "Três regras batem ao mesmo tempo: VIP, frete grátis e volume. Repare que nenhuma sabe da existência das outras — cada uma só declara quando vale e o que faz.",
+    regras: REGRAS_BASE,
+    pedido: { total: 1480.0, itens: 12, cliente: { nome: "Loja Miguel", vip: true, pedidos_anteriores: 27 }, entrega: { uf: "SP", cidade: "Lorena" } },
+  },
+  {
+    nome: "primeira compra",
+    explica: "Cliente novo, fora de São Paulo. O desconto de VIP não bate, mas o de boas-vindas sim — e o frete muda por causa da UF.",
+    regras: REGRAS_BASE,
+    pedido: { total: 320.0, itens: 3, cliente: { nome: "Marvet", vip: false, pedidos_anteriores: 0 }, entrega: { uf: "MG", cidade: "Itajubá" } },
+  },
+  {
+    nome: "regra nova, ao vivo",
+    explica: "Uma regra a mais, escrita na mesma linguagem. Não há nada para recompilar nem esquema para atualizar: a regra <b>é</b> código Ruby, avaliado agora.",
+    regras: comRegraExtra(`  regra "bloqueio por valor alto sem VIP" do
+    quando { total > 5000 && !cliente.vip? }
+    entao  { bloquear! "Pedido acima de R$ 5.000 de cliente não-VIP: exige aprovação manual." }
+  end`),
+    pedido: { total: 7300.0, itens: 4, cliente: { nome: "Cliente novo", vip: false, pedidos_anteriores: 2 }, entrega: { uf: "SP", cidade: "Guaratinguetá" } },
+  },
+  {
+    nome: "dado que não existe",
+    quebra: true,
+    explica: 'Uma regra pede <code>cliente.score_credito</code>, que não está no pedido. O <code>method_missing</code> não devolve <code>nil</code> em silêncio: ele <b>levanta erro</b> dizendo o que existe. Falhar alto é melhor que decidir errado com dado faltando.',
+    regras: comRegraExtra(`  regra "análise de crédito" do
+    quando { cliente.score_credito > 700 }
+    entao  { aplicar_desconto 3 }
+  end`),
+    pedido: { total: 890.0, itens: 5, cliente: { nome: "Cliente sem score", vip: false, pedidos_anteriores: 4 }, entrega: { uf: "SP", cidade: "Lorena" } },
+  },
+];
+
+// --- Ruby -----------------------------------------------------------------
+
+let vm = null;
+let fonteDsl = "";
+
+/**
+ * Converte um valor do JavaScript em literal Ruby.
+ *
+ * Passar JSON e deixar o Ruby decodificar seria mais simples, mas a
+ * distribuição publicada do ruby.wasm não traz a stdlib `json`. Gerar o
+ * literal aqui evita a dependência dos dois lados.
+ *
+ * O `#` precisa virar `\#`: em string de aspas duplas o Ruby interpreta
+ * `#{...}` como interpolação, e um dado do visitante contendo isso executaria
+ * código dentro da string.
+ */
+function paraRuby(v) {
+  if (v === null || v === undefined) return "nil";
+  if (typeof v === "boolean" || typeof v === "number") return String(v);
+  if (typeof v === "string") return JSON.stringify(v).replace(/#/g, "\\#");
+  if (Array.isArray(v)) return "[" + v.map(paraRuby).join(", ") + "]";
+  return "{" + Object.entries(v).map(([k, x]) => `${paraRuby(String(k))} => ${paraRuby(x)}`).join(", ") + "}";
+}
+
+function avaliar() {
+  if (!vm) return;
+
+  let pedido;
+  try {
+    pedido = JSON.parse($("pedido").value);
+  } catch (e) {
+    $("saida").innerHTML = `<div class="erro-rb">O JSON do pedido está inválido:\n${esc(e.message)}</div>`;
+    return;
+  }
+
+  const script = `
+begin
+  regras = ${$("regras").value}
+  dados  = ${paraRuby(pedido)}
+  Json.gerar(Regras.avaliar(regras, dados))
+rescue SyntaxError => e
+  Json.gerar({ "falha" => "erro de sintaxe no Ruby — " + e.message })
+rescue StandardError => e
+  Json.gerar({ "falha" => e.class.to_s + " — " + e.message })
+end
+`;
+
+  let bruto;
+  try {
+    bruto = vm.eval(script).toString();
+  } catch (e) {
+    $("saida").innerHTML = `<div class="erro-rb">${esc(String(e.message ?? e))}</div>`;
+    return;
+  }
+
+  let r;
+  try {
+    r = JSON.parse(bruto);
+  } catch {
+    $("saida").innerHTML = `<div class="erro-rb">Resposta ilegível do Ruby:\n${esc(bruto.slice(0, 500))}</div>`;
+    return;
+  }
+
+  if (r.falha) {
+    $("saida").innerHTML = `<div class="erro-rb">${esc(r.falha)}</div>`;
+    return;
+  }
+
+  desenhar(r);
+}
+
+function desenhar(r) {
+  const disparadas = new Set(r.disparadas);
+
+  const lista = r.avaliadas.map((nome) => {
+    const bateu = disparadas.has(nome);
+    return `<li class="${bateu ? "disparou" : ""}">
+      <span class="marca">${bateu ? "✓" : "·"}</span>${esc(nome)}
+    </li>`;
+  }).join("");
+
+  const erros = r.erros.length
+    ? `<div class="erro-rb">${r.erros.map(esc).join("\n")}</div>`
+    : "";
+
+  const bloqueio = r.bloqueado
+    ? `<div class="bloqueado-faixa">Pedido bloqueado para aprovação manual</div>`
+    : "";
+
+  const avisos = r.avisos.length
+    ? `<ul class="avisos">${r.avisos.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>`
+    : "";
+
+  $("saida").innerHTML = `
+    ${erros}
+    ${bloqueio}
+    <ul class="regras-lista">${lista}</ul>
+    <div class="conta">
+      <div class="linha-conta"><span>subtotal</span><span class="v">${dinheiro(r.subtotal)}</span></div>
+      <div class="linha-conta desc"><span>desconto (${r.desconto_pct}%)</span><span class="v">${r.desconto > 0 ? "− " + dinheiro(r.desconto) : "—"}</span></div>
+      <div class="linha-conta"><span>frete</span><span class="v">${r.frete === 0 ? "grátis" : dinheiro(r.frete)}</span></div>
+      <div class="linha-conta total"><span>total</span><span class="v">${dinheiro(r.total)}</span></div>
+    </div>
+    ${avisos}`;
+}
+
+// --- Interface ------------------------------------------------------------
+
+function aplicar(ex) {
+  $("regras").value = ex.regras;
+  $("pedido").value = JSON.stringify(ex.pedido, null, 2);
+  $("explica").innerHTML = ex.explica;
+  $("explica").className = "explica" + (ex.quebra ? " quebra" : "");
+  avaliar();
+}
+
+(function montar() {
+  const caixa = $("exemplos");
+  EXEMPLOS.forEach((ex, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = ex.nome;
+    if (ex.quebra) b.classList.add("quebra");
+    b.addEventListener("click", () => {
+      caixa.querySelectorAll("button").forEach((o) => o.classList.remove("ativo"));
+      b.classList.add("ativo");
+      aplicar(ex);
+    });
+    if (i === 0) b.classList.add("ativo");
+    caixa.appendChild(b);
+  });
+})();
+
+$("rodar").addEventListener("click", avaliar);
+
+// --- Início ---------------------------------------------------------------
+
+try {
+  fonteDsl = await (await fetch("dsl.rb")).text();
+  $("fonte").innerHTML = esc(fonteDsl)
+    .replace(/(^|\n)(\s*)(#.*)/g, '$1$2<span class="c">$3</span>')
+    .replace(/\b(class|module|def|end|do|if|unless|return|self|super|rescue|begin|raise|attr_reader|each|map)\b/g, '<span class="k">$1</span>');
+
+  const resposta = await fetch("https://cdn.jsdelivr.net/npm/@ruby/3.4-wasm-wasi@2.10.1/dist/ruby.wasm");
+  const modulo = await WebAssembly.compileStreaming(resposta);
+  ({ vm } = await DefaultRubyVM(modulo));
+
+  // O motor é carregado uma vez; cada avaliação só usa as classes já definidas.
+  vm.eval(fonteDsl);
+
+  $("versao").textContent = "Ruby " + vm.eval("RUBY_VERSION").toString() + " compilado para WebAssembly";
+  $("rodar").disabled = false;
+  aplicar(EXEMPLOS[0]);
+} catch (e) {
+  $("explica").innerHTML = `<span style="color:var(--rose)">Não consegui carregar o Ruby: ${esc(String(e.message ?? e))}</span>`;
+  console.error(e);
+}
+</script>
+</body>
+</html>
