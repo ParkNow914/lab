@@ -1,0 +1,9 @@
+_build/
+deps/
+.git/
+.gitignore
+.elixir_ls/
+priv/static/assets/
+priv/static/cache_manifest.json
+test/
+README.md

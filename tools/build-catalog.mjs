@@ -131,6 +131,13 @@ for (const arquivo of arquivos) {
       erros.push(`${onde}: "demoExterna" precisa ser uma URL https`);
     }
 
+    // Hospedagem gratis de verdade dorme quando ninguem visita. Quem clica e
+    // espera um minuto sem explicacao conclui que o sistema quebrou — entao a
+    // espera e anunciada ANTES do clique, no proprio cartao.
+    if (p.notaDemo && !p.demoExterna) {
+      erros.push(`${onde}: "notaDemo" so faz sentido junto com "demoExterna"`);
+    }
+
     p.grupo = dados.grupo;
     p.runtimeInfo = RUNTIMES[p.runtime] ?? null;
     p.demo = p.demoExterna ?? `/lab/${p.id}/`;

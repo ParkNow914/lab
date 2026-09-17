@@ -409,15 +409,17 @@
       "kind": "framework",
       "framework": "Phoenix LiveView",
       "title": "Sala colaborativa com LiveView",
-      "pitch": "Vários visitantes no mesmo quadro ao vivo: cursor, presença e edição simultânea, com zero JavaScript escrito.",
-      "why": "LiveView entrega tempo real com HTML pelo websocket. Uma sala colaborativa aberta para qualquer visitante é a demonstração mais difícil de fingir.",
+      "pitch": "Um quadro que vários visitantes escrevem ao mesmo tempo, sem uma linha de JavaScript minha — e um botão que mata o processo do servidor para você ver o supervisor recriá-lo sem a página cair.",
+      "why": "'Deixe quebrar' só convence quando você vê quebrar e voltar. LiveView entrega o tempo real, e OTP entrega a tolerância a falha: as duas coisas na mesma tela, com o processo morrendo de verdade a pedido de quem está olhando.",
       "runtime": "container",
-      "toolchain": "Phoenix + LiveView",
+      "toolchain": "Phoenix + LiveView + OTP",
       "status": "planned",
       "tags": [
         "tempo real",
         "colaborativo",
-        "presença"
+        "presença",
+        "OTP",
+        "tolerância a falha"
       ]
     },
     {

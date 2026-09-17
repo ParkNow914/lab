@@ -227,6 +227,7 @@
 
   .tags { display: flex; flex-wrap: wrap; gap: 6px; }
   .chip { font-family: var(--font-mono); font-size: .68rem; color: var(--text-dim); background: var(--surface); border: 1px solid var(--border); padding: 3px 8px; border-radius: 999px; }
+  .nota-demo { margin: 0; font-size: .74rem; line-height: 1.6; color: var(--amber); }
 
   .card-bot { margin-top: auto; padding-top: 13px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
@@ -413,6 +414,12 @@ function card(p) {
       }${p.externa ? "" : " →"}</a>`
     : `<a class="btn" aria-disabled="true" href="#">Em breve</a>`;
 
+  // O aviso de que o servico dorme vem antes do clique, nao depois: esperar um
+  // minuto numa tela em branco sem saber por que e a pior versao disto.
+  const notaDemo = pronto && p.notaDemo
+    ? `<p class="nota-demo">${esc(p.notaDemo)}</p>`
+    : "";
+
   return `
   <article class="card">
     <div class="card-top">
@@ -424,6 +431,7 @@ function card(p) {
     <p class="pitch">${esc(p.pitch)}</p>
     <details class="why"><summary>Por que este projeto</summary><p>${esc(p.why)}</p></details>
     <div class="tags">${(p.tags || []).map((t) => `<span class="chip">${esc(t)}</span>`).join("")}</div>
+    ${notaDemo}
     <div class="card-bot">
       <span class="runtime r-${esc(p.runtime)}" title="${esc(ri.detalhe || "")}">
         <span class="ico" aria-hidden="true">${esc(ri.icone || "")}</span>${esc(ri.rotulo || p.runtime)}

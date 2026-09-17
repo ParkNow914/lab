@@ -1,0 +1,22 @@
+# Blueprint do Render para as demos do laboratório que precisam de um servidor
+# de verdade — as que não conseguem rodar dentro do navegador do visitante.
+#
+# Por que Render: plano gratuito sem cartão de crédito, 750 h/mês por conta e
+# suporte a Docker. O serviço dorme depois de 15 minutos sem visita e leva
+# cerca de um minuto para acordar. Isso está escrito na própria página da demo,
+# porque um visitante que espera sem explicação acha que o sistema quebrou.
+services:
+  - type: web
+    name: lab-sala-liveview
+    runtime: docker
+    plan: free
+    region: oregon
+    rootDir: projects/elixir-phoenix
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      # Gerado pelo Render e guardado por ele: não existe segredo no repositório.
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      - key: PHX_SERVER
+        value: "true"

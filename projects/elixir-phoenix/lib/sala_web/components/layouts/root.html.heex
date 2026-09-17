@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <meta name="color-scheme" content="dark" />
+    <meta
+      name="description"
+      content="Quadro compartilhado em Phoenix LiveView, sem JavaScript de aplicação — e um botão que mata o processo para o supervisor recriá-lo na sua frente."
+    />
+    <.live_title default="Sala colaborativa com LiveView — Laboratório Autark">
+      {assigns[:page_title]}
+    </.live_title>
+
+    <%!--
+      Casco visual do laboratório, por URL absoluta. Os assets de lá respondem
+      com Access-Control-Allow-Origin: *, então funcionam a partir do Render —
+      e assim não existe uma cópia divergente do CSS só porque esta demo mora
+      em outro host.
+    --%>
+    <link rel="stylesheet" href="https://autarktech.com.br/assets/fonts/fonts.css" />
+    <link rel="stylesheet" href="https://autarktech.com.br/lab/demo.css" />
+
+    <style>
+      .notas { list-style: none; margin: 16px 0 0; padding: 0; max-height: 340px; overflow-y: auto; }
+      .notas li {
+        display: grid; grid-template-columns: 110px 1fr 70px; gap: 10px; align-items: baseline;
+        padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.05);
+      }
+      .notas li:last-child { border-bottom: none; }
+      .n-autor { font-family: var(--font-mono); font-size: .7rem; color: var(--cyan); }
+      .n-texto { font-size: .9rem; color: var(--text); word-break: break-word; }
+      .n-quando { font-family: var(--font-mono); font-size: .68rem; color: var(--text-dim); text-align: right; }
+
+      .proc { font-family: var(--font-mono); font-size: .86rem; }
+      .proc-linha {
+        display: flex; justify-content: space-between; padding: 10px 0;
+        border-bottom: 1px solid rgba(255,255,255,.05); color: var(--text-muted);
+      }
+      .proc-linha:last-child { border-bottom: none; }
+      .proc-linha b { color: var(--accent); }
+      .proc-linha b.alerta { color: var(--amber); }
+
+      button.matar { color: var(--rose); border-color: rgba(251,113,133,.35); }
+      button.matar:hover { background: rgba(251,113,133,.12); }
+
+      .aviso-linha {
+        margin-top: 12px; padding: 10px 13px; border-radius: 9px;
+        background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.28);
+        color: var(--amber); font-size: .84rem;
+      }
+
+      .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; line-height: 1.7; }
+      .dica b { color: var(--accent); }
+      .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+    </style>
+
+    <%!--
+      Este é o único JavaScript da página, e ele é do Phoenix, não meu: é o
+      cliente que mantém o websocket e aplica as diferenças de HTML que o
+      servidor manda.
+    --%>
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
+    </script>
+  </head>
+  <body>
+    {@inner_content}
+  </body>
+</html>
