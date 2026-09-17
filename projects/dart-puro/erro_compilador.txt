@@ -1,0 +1,5 @@
+Analyzing falta_um_caso.dart...
+
+  error - falta_um_caso.dart:14:31 - The type 'Estado' isn't exhaustively matched by the switch cases since it doesn't match the pattern 'Cancelado()'. Try adding a wildcard pattern or cases that match 'Cancelado()'. - non_exhaustive_switch_expression
+
+1 issue found.

@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Máquina de estados que o compilador vigia — Laboratório Autark</title>
+<meta name="description" content="Fluxo de pedido com classes seladas e pattern matching do Dart 3: esquecer um estado não passa da compilação — com o erro real do compilador na página.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  .fluxo { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .no {
+    font-family: var(--font-mono); font-size: .72rem; padding: 7px 12px;
+    border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim);
+    transition: .18s;
+  }
+  .no.atual { border-width: 2px; font-weight: 600; }
+  .no.visitado { color: var(--text-muted); }
+  .no.cor-neutro.atual    { border-color: var(--text-dim); color: var(--text); }
+  .no.cor-espera.atual    { border-color: rgba(251,191,36,.6); color: var(--amber); background: rgba(251,191,36,.1); }
+  .no.cor-andamento.atual { border-color: rgba(34,211,238,.6); color: var(--cyan); background: rgba(34,211,238,.1); }
+  .no.cor-sucesso.atual   { border-color: rgba(52,211,153,.6); color: var(--accent); background: var(--accent-soft); }
+  .no.cor-falha.atual     { border-color: rgba(251,113,133,.6); color: var(--rose); background: rgba(251,113,133,.1); }
+
+  .estado-caixa {
+    padding: 18px 20px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--bg-card); margin-bottom: 16px;
+  }
+  .estado-caixa .cod { font-family: var(--font-mono); font-size: .7rem; color: var(--text-dim); letter-spacing: .08em; text-transform: uppercase; }
+  .estado-caixa .desc { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; margin-top: 7px; line-height: 1.4; }
+
+  .eventos { display: flex; flex-wrap: wrap; gap: 8px; }
+  .eventos button { font-size: .8rem; }
+  .eventos button.cancelar { color: var(--rose); border-color: rgba(251,113,133,.3); }
+
+  .historico { list-style: none; margin: 16px 0 0; padding: 0; font-family: var(--font-mono); font-size: .74rem; max-height: 200px; overflow-y: auto; }
+  .historico li { padding: 5px 9px; border-left: 2px solid var(--border); margin-bottom: 3px; color: var(--text-dim); }
+  .historico li.ok { border-left-color: var(--accent); color: var(--text-muted); }
+  .historico li.recusado { border-left-color: var(--rose); color: var(--rose); }
+
+  pre.codigo {
+    background: rgba(0,0,0,.35); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px; font-size: .74rem; line-height: 1.6; overflow: auto; margin: 0;
+    max-height: 420px; color: var(--text-muted); white-space: pre;
+  }
+  pre.codigo .c { color: var(--text-dim); font-style: italic; }
+  pre.codigo .k { color: var(--cyan); }
+
+  pre.erro-compilador {
+    background: rgba(251,113,133,.07); border: 1px solid rgba(251,113,133,.3);
+    border-radius: 10px; padding: 14px; font-size: .76rem; line-height: 1.7;
+    overflow: auto; margin: 0; color: var(--rose); white-space: pre-wrap;
+  }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; }
+  .dica b { color: var(--accent); }
+  .dica .r { color: var(--rose); font-weight: 600; }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">Dart</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/dart-puro">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Esquecer um caso não passa da compilação</h1>
+  <p class="pitch">
+    Um fluxo de pedido com sete estados. O que importa não é a máquina de estados — é que
+    o <strong>compilador do Dart recusa</strong> um <code>switch</code> que não cubra todos
+    eles. Esquecer um estado deixa de ser um bug que aparece em produção e vira erro na
+    hora de compilar. Mais abaixo está o erro de verdade.
+  </p>
+
+  <div class="meta">
+    <span>Dart 3</span>
+    <span>classes seladas</span>
+    <span>pattern matching</span>
+    <span>compilado com dart2js</span>
+    <span>54 KB de JavaScript</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    Isolates seriam a escolha óbvia para Dart — mas <b>não existem no dart2js</b>, e
+    prometer isso numa página web seria falso. Classe selada com <code>switch</code>
+    exaustivo é o recurso de destaque do Dart 3, funciona na web, e resolve um problema
+    real: estado novo esquecido em algum lugar do código.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <div class="duas">
+
+      <section class="painel">
+        <h2>O pedido <span class="hint">clique nos eventos</span></h2>
+
+        <div class="fluxo" id="fluxo"></div>
+
+        <div class="estado-caixa" id="estado">
+          <div class="cod">carregando</div>
+          <div class="desc">—</div>
+        </div>
+
+        <div class="eventos" id="eventos"></div>
+
+        <div class="linha" style="margin-top:16px">
+          <button id="reiniciar">Novo pedido</button>
+        </div>
+
+        <ul class="historico" id="historico"></ul>
+      </section>
+
+      <section class="painel">
+        <h2>O switch que decide tudo</h2>
+        <p class="dica">
+          Sem <code>default</code>, de propósito. É a ausência dele que faz o compilador
+          trabalhar: ele precisa provar que todos os sete estados estão cobertos.
+        </p>
+        <pre class="codigo" id="fonte-switch">carregando…</pre>
+      </section>
+
+    </div>
+
+    <section class="painel">
+      <h2>O erro de verdade <span class="hint">capturado no build</span></h2>
+      <p class="dica">
+        Este é o arquivo <code>exemplo/falta_um_caso.dart</code>: ele cria um estado
+        <code>Cancelado</code> e <b>não</b> o trata no <code>switch</code>. Numa linguagem
+        com <code>default</code>, isso compilaria e quebraria mais tarde.
+      </p>
+      <pre class="codigo" id="fonte-quebrado">carregando…</pre>
+
+      <p class="dica" style="margin-top:16px">
+        E esta é a saída do <code>dart analyze</code> nele — gravada durante o build, não
+        escrita à mão:
+      </p>
+      <pre class="erro-compilador" id="erro">carregando…</pre>
+
+      <p class="dica" style="margin-top:16px">
+        <b>Try adding a wildcard pattern or cases that match 'Cancelado()'.</b> O
+        compilador não só recusa: ele diz exatamente qual caso falta. É a diferença entre
+        um sistema de tipos que atrapalha e um que <span style="color:var(--accent)">trabalha
+        junto</span>.
+      </p>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/dart-puro">Ler o pedido.dart</a>
+  </div>
+</div>
+
+<script src="pedido.js" defer></script>
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+const ROTULO_EVENTO = {
+  enviarParaPagamento: "Enviar para pagamento",
+  pagar: "Registrar pagamento",
+  separar: "Separar no estoque",
+  despachar: "Despachar",
+  entregar: "Confirmar entrega",
+  cancelar: "Cancelar",
+};
+
+const ROTULO_ESTADO = {
+  rascunho: "rascunho",
+  aguardando_pagamento: "aguardando pagamento",
+  pago: "pago",
+  em_separacao: "em separação",
+  despachado: "despachado",
+  entregue: "entregue",
+  cancelado: "cancelado",
+};
+
+let maquina = null;
+let atual = null;
+const visitados = new Set();
+
+function desenharFluxo() {
+  $("fluxo").innerHTML = maquina.estados.map((e) => {
+    const classes = ["no", "cor-" + e.cor];
+    if (e.codigo === atual.codigo) classes.push("atual");
+    else if (visitados.has(e.codigo)) classes.push("visitado");
+    return `<span class="${classes.join(" ")}">${esc(ROTULO_ESTADO[e.codigo] ?? e.codigo)}</span>`;
+  }).join("");
+}
+
+function desenharEstado() {
+  $("estado").innerHTML = `
+    <div class="cod">${esc(atual.codigo)}</div>
+    <div class="desc">${esc(atual.descricao)}</div>`;
+
+  $("eventos").innerHTML = atual.final
+    ? `<span class="dica" style="margin:0">Estado final: este pedido não aceita mais eventos.</span>`
+    : atual.eventos.map((ev) =>
+        `<button data-evento="${esc(ev)}" class="${ev === "cancelar" ? "cancelar" : ""}">${esc(ROTULO_EVENTO[ev] ?? ev)}</button>`
+      ).join("");
+
+  $("eventos").querySelectorAll("[data-evento]").forEach((b) => {
+    b.addEventListener("click", () => aplicar(b.dataset.evento));
+  });
+}
+
+function registrar(classe, texto) {
+  const li = document.createElement("li");
+  li.className = classe;
+  li.textContent = texto;
+  $("historico").prepend(li);
+}
+
+function aplicar(evento) {
+  const bruto = dartAplicar(atual.codigo, evento);
+  const r = JSON.parse(bruto);
+
+  if (r.erro) {
+    registrar("recusado", "recusado — " + r.erro);
+    return;
+  }
+
+  visitados.add(atual.codigo);
+  const de = atual.codigo;
+  atual = r.estado;
+  registrar("ok", `${de} --${evento}--> ${atual.codigo}`);
+  desenharFluxo();
+  desenharEstado();
+}
+
+function reiniciar() {
+  visitados.clear();
+  atual = maquina.estados.find((e) => e.codigo === maquina.inicial);
+  $("historico").innerHTML = "";
+  registrar("ok", "pedido criado");
+  desenharFluxo();
+  desenharEstado();
+}
+
+// --- Fontes ---------------------------------------------------------------
+
+function realcarDart(codigo) {
+  return esc(codigo)
+    .replace(/(^|\n)(\s*)(\/\/.*)/g, '$1$2<span class="c">$3</span>')
+    .replace(/\b(sealed|final|class|extends|const|switch|case|enum|return|void|String|bool|int|double|Map|List|true|false|null|get|override)\b/g, '<span class="k">$1</span>');
+}
+
+async function carregarFontes() {
+  const [fonte, quebrado, erro] = await Promise.all([
+    fetch("lib/pedido.dart").then((r) => r.text()),
+    fetch("exemplo/falta_um_caso.dart").then((r) => r.text()),
+    fetch("erro_compilador.txt").then((r) => r.text()),
+  ]);
+
+  // Só o trecho do switch de transição: o arquivo inteiro está no repositório.
+  const ini = fonte.indexOf("Estado? transicao(");
+  const fim = fonte.indexOf("/// Descrição legível");
+  $("fonte-switch").innerHTML = realcarDart(fonte.slice(ini, fim).trimEnd());
+
+  $("fonte-quebrado").innerHTML = realcarDart(quebrado);
+  $("erro").textContent = erro.trim();
+}
+
+// --- Início ---------------------------------------------------------------
+
+(async () => {
+  try {
+    await carregarFontes();
+  } catch (e) {
+    $("erro").textContent = "Não consegui carregar os fontes: " + e.message;
+  }
+
+  // dart2js roda no `defer`; esperar o sinal é mais confiável que encadear
+  // num evento de load.
+  for (let i = 0; i < 80; i++) {
+    if (typeof dartMaquina === "function") break;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+
+  if (typeof dartMaquina !== "function") {
+    $("estado").innerHTML = `<div class="desc" style="color:var(--rose)">O Dart não carregou.</div>`;
+    return;
+  }
+
+  maquina = JSON.parse(dartMaquina());
+  $("reiniciar").addEventListener("click", reiniciar);
+  reiniciar();
+})();
+</script>
+</body>
+</html>
