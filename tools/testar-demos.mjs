@@ -101,8 +101,13 @@ for (const demo of demos) {
     erros.push(`recurso local faltando: ${caminho}`);
   });
 
+  // Demo externa (Vercel, Cloudflare) mora fora daqui, mas a promessa da pagina
+  // e a mesma: se o card diz "no ar", tem que abrir. Testar so as locais
+  // deixaria justamente as que dependem de servidor sem vigilancia.
+  const alvo = demo.demoExterna ?? `${base}/${demo.id}/`;
+
   try {
-    const resposta = await pagina.goto(`${base}/${demo.id}/`, { waitUntil: "load", timeout: 30_000 });
+    const resposta = await pagina.goto(alvo, { waitUntil: "load", timeout: 45_000 });
     if (!resposta || !resposta.ok()) throw new Error(`HTTP ${resposta?.status()}`);
 
     // Tempo para WASM baixar, instanciar e a demo desenhar a primeira vez.
@@ -126,7 +131,7 @@ for (const demo of demos) {
     console.log(`  FALHOU  ${demo.id}`);
     for (const e of erros.slice(0, 5)) console.log(`          ${e}`);
   } else {
-    console.log(`  ok      ${demo.id}  (${demo.lang})`);
+    console.log(`  ok      ${demo.id}  (${demo.lang})${demo.demoExterna ? "  [externa]" : ""}`);
   }
 }
 

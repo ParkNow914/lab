@@ -1,0 +1,310 @@
+/* Só o que é desta demo. Cores, tipografia e o casco (.topo, .cab, .painel,
+   .rodape) vêm de https://autarktech.com.br/lab/demo.css, carregado no layout. */
+
+.modos {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.modos a {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: 0.18s;
+}
+.modos a:hover {
+  border-color: var(--border-hover);
+  color: var(--text);
+}
+.modos a.ativo {
+  background: var(--accent-soft);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------- cascata */
+
+.cascata {
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.cascata-topo {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 14px;
+}
+.cascata-resumo {
+  text-transform: none;
+  letter-spacing: 0;
+}
+.cascata-resumo b {
+  color: var(--accent);
+}
+.cascata-linha {
+  display: grid;
+  grid-template-columns: 150px 1fr 70px;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 7px;
+}
+.cascata-nome {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.cascata-trilho {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.cascata-trilho i {
+  display: block;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  transition: width 0.25s ease-out;
+}
+.cascata-trilho i.chegou {
+  background: linear-gradient(90deg, rgba(52, 211, 153, 0.35), var(--accent));
+}
+.cascata-ms {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  text-align: right;
+}
+.cascata-nota {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin: 14px 0 0;
+  line-height: 1.6;
+}
+.cascata-nota b {
+  color: var(--accent);
+}
+
+@media (max-width: 600px) {
+  .cascata-linha {
+    grid-template-columns: 110px 1fr 60px;
+  }
+  .cascata-nome {
+    font-size: 0.72rem;
+  }
+}
+
+/* ------------------------------------------------------------- painéis */
+
+.grade-paineis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 22px;
+}
+@media (max-width: 820px) {
+  .grade-paineis {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cartao {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  min-height: 190px;
+}
+.cartao.esqueleto {
+  opacity: 0.65;
+}
+
+.p-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.p-nome {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.p-lat {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+.barras-falsas i {
+  display: block;
+  height: 14px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  margin-bottom: 9px;
+  animation: pulsar 1.4s ease-in-out infinite;
+}
+.barras-falsas i:nth-child(2) {
+  width: 78%;
+  animation-delay: 0.15s;
+}
+.barras-falsas i:nth-child(3) {
+  width: 56%;
+  animation-delay: 0.3s;
+}
+@keyframes pulsar {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.9; }
+}
+
+/* KPIs */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.kpi-n {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.kpi-l {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 3px;
+}
+@media (max-width: 480px) {
+  .kpis { grid-template-columns: 1fr; }
+}
+
+/* Lista com barra */
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.lista li {
+  display: grid;
+  grid-template-columns: 120px 1fr 90px;
+  gap: 10px;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 0.8rem;
+}
+.l-nome { color: var(--text-muted); }
+.l-barra {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.l-barra i {
+  display: block;
+  height: 100%;
+  background: var(--cyan);
+  opacity: 0.75;
+  border-radius: 4px;
+}
+.l-valor {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text);
+  text-align: right;
+}
+
+/* Colunas por hora */
+.colunas {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 130px;
+}
+.coluna {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+  gap: 5px;
+}
+.coluna i {
+  display: block;
+  width: 100%;
+  background: linear-gradient(180deg, var(--accent), rgba(52, 211, 153, 0.3));
+  border-radius: 4px 4px 0 0;
+  min-height: 3px;
+}
+.coluna span {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+}
+
+/* Conciliação */
+.conc-linha {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+.conc-linha b {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+.conc-linha b.neg { color: var(--amber); }
+.conc-linha b.alerta { color: var(--rose); }
+.conc-linha.destaque {
+  border-bottom: none;
+  border-top: 1px solid var(--border);
+  margin-top: 5px;
+  padding-top: 11px;
+}
+
+/* Código */
+pre.codigo {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  line-height: 1.7;
+  overflow: auto;
+  margin: 0;
+  color: var(--text-muted);
+  white-space: pre;
+}
+
+.dica {
+  font-size: 0.84rem;
+  color: var(--text-dim);
+  margin: 0 0 12px;
+  line-height: 1.7;
+}
+.dica b { color: var(--accent); }
+.dica code {
+  background: var(--surface);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}

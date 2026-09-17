@@ -64,16 +64,17 @@
       "kind": "framework",
       "framework": "Next.js",
       "title": "Painel com Server Components e streaming",
-      "pitch": "Dashboard com React Server Components, streaming de dados, Server Actions e cache por camada — medindo o tempo de cada etapa na tela.",
+      "pitch": "O mesmo painel servido de dois jeitos: esperando a consulta mais lenta, ou enviando cada pedaço assim que fica pronto — com a cascata de chegada medida ao vivo.",
       "why": "Next.js é onde eu trabalho todo dia. Server Components é a parte que quase ninguém usa direito, então é onde dá para mostrar diferença.",
       "runtime": "container",
-      "toolchain": "Next.js 16 + Vercel",
+      "toolchain": "Next.js 16 + React 19, hospedado na Vercel",
       "status": "planned",
       "tags": [
         "RSC",
         "streaming",
         "cache"
-      ]
+      ],
+      "demoExterna": "https://lab-nextjs-streaming.vercel.app/"
     },
     {
       "id": "python-puro",

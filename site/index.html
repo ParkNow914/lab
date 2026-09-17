@@ -405,8 +405,12 @@ function card(p) {
     ? `<span class="fw">${esc(p.framework)}</span>`
     : `<span class="puro">puro</span>`;
 
+  // Demo externa abre em aba nova: ela mora noutro dominio, e voltar para o
+  // laboratorio com o botao do navegador seria pior.
   const acaoDemo = pronto
-    ? `<a class="btn pri" href="${esc(p.demo)}">${naveg ? "Abrir" : "Ver"} →</a>`
+    ? `<a class="btn pri" href="${esc(p.demo)}"${p.externa ? ' target="_blank" rel="noopener noreferrer"' : ""}>${
+        p.externa ? "Abrir ↗" : naveg ? "Abrir" : "Ver"
+      }${p.externa ? "" : " →"}</a>`
     : `<a class="btn" aria-disabled="true" href="#">Em breve</a>`;
 
   return `

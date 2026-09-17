@@ -93,7 +93,9 @@ if (comControle.length) {
 // nao existe, nem "planejado" para uma demo que ja esta publicada.
 let corrigidos = 0;
 for (const p of projetos) {
-  const temDemo = publicados.includes(p.id);
+  // Uma demo conta como no ar se tem pasta publicada aqui OU se e hospedada
+  // fora (Vercel, Cloudflare) e o catalogo registra a URL.
+  const temDemo = publicados.includes(p.id) || Boolean(p.demoExterna);
   const alvo = temDemo ? "live" : p.status === "live" ? "planned" : p.status;
   if (p.status !== alvo) {
     console.log(`  status ajustado: ${p.id} ${p.status} -> ${alvo}`);

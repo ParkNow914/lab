@@ -124,9 +124,17 @@ for (const arquivo of arquivos) {
       avisos.push(`${onde}: o campo "why" esta muito curto — e ele que justifica o projeto`);
     }
 
+    // Demo externa: projeto que precisa de servidor de verdade e por isso mora
+    // fora do GitHub Pages (Vercel, Cloudflare). O codigo continua aqui; so a
+    // execucao e que e hospedada em outro lugar.
+    if (p.demoExterna && !/^https:\/\//.test(p.demoExterna)) {
+      erros.push(`${onde}: "demoExterna" precisa ser uma URL https`);
+    }
+
     p.grupo = dados.grupo;
     p.runtimeInfo = RUNTIMES[p.runtime] ?? null;
-    p.demo = `/lab/${p.id}/`;
+    p.demo = p.demoExterna ?? `/lab/${p.id}/`;
+    p.externa = Boolean(p.demoExterna);
     p.fonte = `https://github.com/ParkNow914/lab/tree/main/projects/${p.id}`;
   }
 
