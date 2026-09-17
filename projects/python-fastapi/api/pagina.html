@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A parte do RAG que decide a qualidade — Laboratório Autark</title>
+<meta name="description" content="Busca com BM25 e citação da fonte, em FastAPI: a etapa que acontece antes do modelo de linguagem e que determina se a resposta vai prestar.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="https://autarktech.com.br/assets/fonts/fonts.css">
+<link rel="stylesheet" href="https://autarktech.com.br/lab/demo.css">
+<style>
+  .busca-caixa { display: flex; gap: 10px; flex-wrap: wrap; }
+  .busca-caixa input { flex: 1 1 320px; font-family: var(--font-body); font-size: .95rem; }
+
+  .sugestoes { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+  .sugestoes button { font-size: .75rem; padding: 6px 11px; }
+
+  .resultado {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px; margin-bottom: 12px;
+  }
+  .resultado:first-child { border-color: rgba(52,211,153,.3); background: rgba(52,211,153,.05); }
+  .r-topo { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; margin-bottom: 9px; }
+  .r-fonte { font-family: var(--font-mono); font-size: .72rem; color: var(--cyan); }
+  .r-fonte a { color: var(--cyan); }
+  .r-pontos { font-family: var(--font-mono); font-size: .7rem; color: var(--text-dim); }
+  .r-texto { font-size: .9rem; color: var(--text-muted); line-height: 1.7; margin: 0; }
+  .r-texto mark { background: rgba(52,211,153,.22); color: var(--accent); padding: 0 2px; border-radius: 3px; }
+  .r-porque { margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 6px; }
+  .r-porque span {
+    font-family: var(--font-mono); font-size: .67rem; color: var(--text-dim);
+    background: var(--surface); border: 1px solid var(--border); padding: 3px 8px; border-radius: 999px;
+  }
+  .r-porque span b { color: var(--accent); }
+
+  .stats { display: flex; gap: 16px; flex-wrap: wrap; font-family: var(--font-mono); font-size: .74rem; color: var(--text-dim); margin-bottom: 14px; }
+  .stats b { color: var(--accent); }
+
+  .ausentes {
+    padding: 12px 15px; border-radius: 10px; margin-bottom: 14px;
+    background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.28);
+    color: var(--amber); font-size: .84rem; line-height: 1.6;
+  }
+  .ausentes code { background: rgba(0,0,0,.25); padding: 1px 6px; border-radius: 4px; font-family: var(--font-mono); }
+
+  .vazio { color: var(--text-dim); font-size: .88rem; padding: 20px 0; }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 12px; line-height: 1.7; }
+  .dica b { color: var(--accent); }
+  .dica .r { color: var(--rose); font-weight: 600; }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .8rem; }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="https://autarktech.com.br/lab/">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">Python · FastAPI</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/python-fastapi">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>A parte do RAG que decide a qualidade</h1>
+  <p class="pitch">
+    Quase toda conversa sobre RAG gira em torno do modelo de linguagem. Mas o modelo só
+    responde com o que recebe: se a recuperação trouxer o trecho errado, <strong>nenhum
+    modelo salva</strong>. Esta página é a etapa que acontece antes — e ela mostra não só
+    o resultado, mas <em>por que</em> cada trecho venceu.
+  </p>
+
+  <div class="meta">
+    <span>Python 3</span>
+    <span>FastAPI</span>
+    <span>BM25 escrito do zero</span>
+    <span>função serverless na Vercel</span>
+    <span>0 dependências de busca</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    É exatamente o que eu construo para cliente. E é honesto sobre o limite: aqui o
+    ranqueamento é <b>lexical</b>, com BM25 — o mesmo algoritmo do Elasticsearch. Ele não
+    entende sinônimo, e a página mostra isso acontecendo em vez de esconder. Trocar essa
+    peça por embeddings com pgvector é a única mudança necessária; todo o resto
+    — fatiamento, índice, ranqueamento e citação — continua igual.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+
+    <section class="painel">
+      <h2>Pergunte <span class="hint">sobre os sistemas que eu construí</span></h2>
+      <div class="busca-caixa">
+        <input type="search" id="q" placeholder="ex.: como funciona o pagamento por PIX?" autocomplete="off">
+        <button class="pri" id="buscar">Buscar</button>
+      </div>
+      <div class="sugestoes" id="sugestoes"></div>
+    </section>
+
+    <section class="painel">
+      <h2>Trechos recuperados</h2>
+      <div class="stats" id="stats"></div>
+      <div id="saida"><p class="vazio">—</p></div>
+    </section>
+
+    <section class="painel">
+      <h2>O que este projeto não esconde</h2>
+      <p class="dica">
+        <b>BM25 é lexical.</b> Ele pontua por termo raro e saturação de frequência, não por
+        significado. Pergunte usando uma palavra que os textos não usam — “cartão” em vez de
+        “PIX”, “multi-tenant” em vez de “inquilino” — e a busca <span class="r">não
+        encontra</span>. A página avisa exatamente quais termos ficaram de fora.
+      </p>
+      <p class="dica">
+        <b>É aí que entram os embeddings.</b> Eles transformam a pergunta e os trechos em
+        vetores onde “cartão” e “PIX” ficam próximos por significado. A peça que muda é só o
+        ranqueamento; fatiamento, índice e citação continuam iguais. Não coloquei embeddings
+        aqui porque exigiriam uma chave de API paga, e uma demo de portfólio não deveria
+        depender de fatura.
+      </p>
+      <p class="dica">
+        <b>O fatiamento é a decisão mais subestimada.</b> Pedaço grande demais dilui o
+        assunto e traz ruído; pequeno demais perde o contexto que dava sentido à frase. Aqui
+        o corte é por seção, respeitando a estrutura que o autor já criou — em vez de
+        partir a cada N caracteres, que é o padrão preguiçoso.
+      </p>
+      <p class="dica">
+        <b>Citar a fonte não é enfeite.</b> Em texto jurídico ou financeiro, resposta sem
+        origem não serve: alguém precisa conferir antes de assinar. Por isso cada trecho aqui
+        vem com documento, seção e a lista de termos que o fizeram vencer.
+      </p>
+      <p class="dica" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
+        A API está aberta: <code>/api/buscar?q=pix</code> e
+        <a href="/api/docs" style="color:var(--accent)">/api/docs</a> com o OpenAPI gerado
+        pelo FastAPI.
+      </p>
+    </section>
+
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="https://autarktech.com.br/lab/">Laboratório</a>
+    <a href="https://autarktech.com.br/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/tree/main/projects/python-fastapi">Ver o código</a>
+  </div>
+</div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+const SUGESTOES = [
+  "como funciona o pagamento por PIX?",
+  "por que usar a API oficial da Meta?",
+  "como vocês reduzem falta no salão?",
+  "o app funciona sem internet?",
+  "onde fica a regra de negócio crítica?",
+  "webhook de pagamento repetido",
+  "como pagar com cartão de crédito?",
+];
+
+function realcar(texto, termos) {
+  let saida = esc(texto);
+  for (const t of termos) {
+    if (t.length < 3) continue;
+    // Sem acento na comparação, porque o índice também normaliza.
+    const re = new RegExp(`(${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\w*)`, "gi");
+    saida = saida.replace(re, "<mark>$1</mark>");
+  }
+  return saida;
+}
+
+async function buscar(pergunta) {
+  const q = (pergunta ?? $("q").value).trim();
+  if (!q) return;
+  $("q").value = q;
+
+  $("saida").innerHTML = `<div class="carregando">Buscando…</div>`;
+  $("stats").innerHTML = "";
+
+  let r;
+  try {
+    r = await (await fetch(`/api/buscar?q=${encodeURIComponent(q)}`)).json();
+  } catch (e) {
+    $("saida").innerHTML = `<p class="vazio" style="color:var(--rose)">Falha na busca: ${esc(e.message)}</p>`;
+    return;
+  }
+
+  $("stats").innerHTML =
+    `<span><b>${r.encontrados}</b> trecho(s) de ${r.total_trechos}</span>` +
+    `<span>em <b>${r.ms} ms</b></span>`;
+
+  const avisoAusentes = r.termos_ausentes.length
+    ? `<div class="ausentes">
+         <b>Termos que não existem em nenhum trecho:</b>
+         ${r.termos_ausentes.map((t) => `<code>${esc(t)}</code>`).join(" ")}
+         <br>É aqui que a busca lexical bate no teto: ela procura a palavra, não o
+         significado. Um índice com embeddings acharia o trecho certo mesmo com outra palavra.
+       </div>`
+    : "";
+
+  if (!r.resultados.length) {
+    $("saida").innerHTML = avisoAusentes +
+      `<p class="vazio">Nenhum trecho bateu com esses termos.</p>`;
+    return;
+  }
+
+  const termosUsados = r.resultados.flatMap((x) => Object.keys(x.porque));
+
+  $("saida").innerHTML = avisoAusentes + r.resultados.map((x) => `
+    <article class="resultado">
+      <div class="r-topo">
+        <span class="r-fonte">
+          ${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.documento)}</a>` : esc(x.documento)}
+          › ${esc(x.secao)}
+        </span>
+        <span class="r-pontos">${x.pontos} pontos</span>
+      </div>
+      <p class="r-texto">${realcar(x.texto, termosUsados)}</p>
+      <div class="r-porque">
+        ${Object.entries(x.porque).map(([termo, peso]) =>
+          `<span>${esc(termo)} <b>${peso}</b></span>`).join("")}
+      </div>
+    </article>`).join("");
+}
+
+(function montar() {
+  const caixa = $("sugestoes");
+  for (const s of SUGESTOES) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = s;
+    b.addEventListener("click", () => buscar(s));
+    caixa.appendChild(b);
+  }
+})();
+
+$("buscar").addEventListener("click", () => buscar());
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter") buscar(); });
+
+buscar(SUGESTOES[0]);
+</script>
+</body>
+</html>

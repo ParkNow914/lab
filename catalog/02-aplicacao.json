@@ -118,17 +118,19 @@
       "langId": "python",
       "kind": "framework",
       "framework": "FastAPI",
-      "title": "API de RAG com busca vetorial",
-      "pitch": "Suba um documento, faça pergunta e receba resposta com a fonte citada — embeddings, busca por similaridade e streaming de tokens.",
-      "why": "É exatamente o que eu construo para cliente. FastAPI com Pydantic e async é a combinação padrão de backend de IA hoje.",
+      "title": "A parte do RAG que decide a qualidade",
+      "pitch": "Busca com citação da fonte sobre a documentação dos meus próprios sistemas: cada trecho vem com o documento, a seção e os termos que o fizeram vencer.",
+      "why": "Quase toda conversa sobre RAG gira em torno do modelo de linguagem, mas o modelo só responde com o que recebe: recuperação ruim, resposta ruim, e nenhum modelo salva. Esta demo é a etapa anterior — fatiamento, índice, ranqueamento BM25 e citação — e é honesta sobre o teto: sendo lexical, ela não entende sinônimo, e a página mostra isso acontecendo em vez de esconder. Trocar essa peça por embeddings com pgvector é a única mudança necessária; não está aqui porque exigiria chave de API paga, e demo de portfólio não deveria depender de fatura.",
       "runtime": "container",
-      "toolchain": "FastAPI + pgvector",
+      "toolchain": "FastAPI + BM25 do zero, função serverless na Vercel",
       "status": "planned",
       "tags": [
-        "IA",
         "RAG",
-        "streaming"
-      ]
+        "BM25",
+        "citação da fonte",
+        "serverless"
+      ],
+      "demoExterna": "https://lab-rag-busca.vercel.app/"
     },
     {
       "id": "java-puro",
