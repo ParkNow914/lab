@@ -6,3 +6,7 @@ node_modules/
 # Gerado por tools/build-catalog.mjs a partir de catalog/*.json.
 # Versionar traria conflito a cada build e um timestamp que nunca bate.
 site/catalog.json
+
+# Dependencias da demo de React: o bundle app.js vai versionado, as
+# dependencias que o produzem nao.
+projects/js-react/node_modules/

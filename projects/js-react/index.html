@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O bug de key do React, provado — Laboratório Autark</title>
+<meta name="description" content="Digite uma anotação em cada linha, insira uma no topo e veja o texto ficar com a pessoa errada. O bug de key do React demonstrado com o DOM medido ao vivo, não explicado em texto.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="/assets/fonts/fonts.css">
+<link rel="stylesheet" href="../demo.css">
+<style>
+  /* .pessoa e nao .linha: `.linha` ja existe no demo.css compartilhado, onde
+     e a fileira de botoes. Reusar o nome aplicaria este grid naquela fileira
+     e quebraria a barra de acoes de toda demo que copiasse este arquivo. */
+  .lista { list-style: none; margin: 0; padding: 0; counter-reset: pos; }
+  .pessoa {
+    counter-increment: pos;
+    display: grid;
+    grid-template-columns: 34px minmax(120px, 1fr) minmax(140px, 1.3fr) auto;
+    gap: 11px; align-items: center;
+    padding: 9px 0; border-bottom: 1px solid var(--border);
+  }
+  .pessoa:last-child { border-bottom: none; }
+  .pessoa::before {
+    content: counter(pos);
+    position: absolute; margin-left: -19px;
+    font-family: var(--font-mono); font-size: .62rem; color: var(--text-dim);
+  }
+  .av {
+    width: 34px; height: 34px; border-radius: 9px;
+    display: grid; place-items: center;
+    font-family: var(--font-mono); font-size: .72rem; font-weight: 700;
+  }
+  .quem { display: flex; flex-direction: column; min-width: 0; }
+  .quem b { font-size: .88rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .quem small { font-family: var(--font-mono); font-size: .64rem; color: var(--text-dim); }
+  .anot { width: 100%; font-size: .8rem; padding: 6px 9px; }
+  .estrela { font-family: var(--font-mono); font-size: .76rem; padding: 5px 9px; white-space: nowrap; }
+
+  .opcoes { display: flex; gap: 8px; margin-bottom: 14px; }
+  .opcoes button { font-family: var(--font-mono); font-size: .76rem; }
+  .opcoes button.sel { color: var(--accent); border-color: rgba(52,211,153,.45); background: rgba(52,211,153,.1); }
+
+  .acao { margin: 12px 0 0; font-size: .8rem; color: var(--text-dim); font-style: italic; }
+
+  .veredito {
+    padding: 13px 15px; border-radius: 10px; font-size: .86rem; line-height: 1.65;
+    margin-bottom: 16px;
+  }
+  .veredito.bom { background: rgba(52,211,153,.08); border: 1px solid rgba(52,211,153,.28); color: var(--text-muted); }
+  .veredito.bom b { color: var(--accent); }
+  .veredito.ruim { background: rgba(251,113,133,.08); border: 1px solid rgba(251,113,133,.3); color: var(--text-muted); }
+  .veredito.ruim b { color: var(--rose); }
+
+  .kpis { display: flex; gap: 9px; flex-wrap: wrap; margin-bottom: 16px; }
+  .kpi { flex: 1 1 88px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; }
+  .kpi .n { font-family: var(--font-mono); font-size: 1.22rem; color: var(--accent); line-height: 1.25; }
+  .kpi .l { font-size: .66rem; color: var(--text-dim); }
+
+  .dica { font-size: .84rem; color: var(--text-dim); margin: 0 0 13px; line-height: 1.75; }
+  .dica b { color: var(--accent); }
+  .dica code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .78rem; }
+
+  .carregando { color: var(--text-dim); font-size: .85rem; padding: 40px 0; text-align: center; }
+
+  @media (max-width: 560px) {
+    .pessoa { grid-template-columns: 30px 1fr auto; grid-template-areas: "av quem estrela" "anot anot anot"; }
+    .av { grid-area: av; } .quem { grid-area: quem; }
+    .anot { grid-area: anot; } .estrela { grid-area: estrela; }
+  }
+</style>
+</head>
+
+<body>
+<a class="skip-link" href="#palco">Pular para a demonstração</a>
+
+<div class="topo">
+  <div class="container topo-in">
+    <a class="voltar" href="../">← Laboratório</a>
+    <span class="topo-sp"></span>
+    <span class="topo-lang">JavaScript · React</span>
+    <a class="topo-fonte" href="https://github.com/ParkNow914/lab/tree/main/projects/js-react">Código ↗</a>
+  </div>
+</div>
+
+<div class="container cab">
+  <h1>Anote em cada linha. Insira uma no topo. Leia de novo.</h1>
+  <p class="pitch">
+    A anotação que você escreveu sobre a Ana vai aparecer do lado do Fábio — e o React
+    não tem bug nenhum. Ele fez exatamente o que a <code>key</code> mandou. Esta página
+    mede, ao vivo, quais nós do DOM ele criou, moveu e reaproveitou, com as duas
+    estratégias de chave lado a lado.
+  </p>
+
+  <div class="meta">
+    <span>React 18</span>
+    <span>hooks</span>
+    <span>reconciliação</span>
+    <span>MutationObserver</span>
+    <span>bundle com esbuild</span>
+  </div>
+
+  <div class="porque">
+    <b>Por que este projeto</b>
+    "Não use o índice como key" é repetido em todo tutorial e entendido em quase nenhum,
+    porque ninguém mostra o estrago. É o bug mais comum de React em produção: silencioso,
+    invisível em teste de unidade, e só aparece quando a lista muda de ordem com o
+    usuário no meio de um formulário. Aqui ele acontece em dois cliques, com o DOM
+    instrumentado para provar o que o reconciliador fez.
+  </div>
+</div>
+
+<main class="palco" id="palco">
+  <div class="container">
+    <div id="raiz"><p class="carregando">Carregando o React…</p></div>
+  </div>
+</main>
+
+<div class="rodape">
+  <div class="container rodape-in">
+    <span>Alisson Santos · Autark</span>
+    <a href="../">Laboratório</a>
+    <a href="/">Portfólio</a>
+    <a href="https://github.com/ParkNow914/lab/blob/main/projects/js-react/src/app.jsx">Ler o componente (app.jsx)</a>
+  </div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

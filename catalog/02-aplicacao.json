@@ -27,16 +27,17 @@
       "langId": "js",
       "kind": "framework",
       "framework": "React",
-      "title": "Editor de fluxo com canvas infinito",
-      "pitch": "Editor de nós arrastáveis com conexões, zoom, pan, desfazer/refazer e execução do grafo — no estilo n8n.",
-      "why": "React é o padrão de mercado. Um editor de grafo é o tipo de interface complexa onde estado, memoização e renderização precisam ser bem resolvidos.",
+      "title": "O bug de key, provado em dois cliques",
+      "pitch": "Anote algo em cada linha, insira uma no topo, e leia de novo: sua anotação agora pertence a outra pessoa. Com o DOM instrumentado para mostrar o que o reconciliador fez.",
+      "why": "'Não use o índice como key' é repetido em todo tutorial e entendido em quase nenhum, porque ninguém mostra o estrago. É o bug de React mais comum em produção: silencioso, invisível em teste de unidade, e só aparece quando a lista muda de ordem com o usuário no meio de um formulário.",
       "runtime": "static",
-      "toolchain": "Vite + React 19",
+      "toolchain": "React 18 + esbuild",
       "status": "planned",
       "tags": [
-        "canvas",
-        "grafo",
-        "estado complexo"
+        "reconciliação",
+        "hooks",
+        "bug clássico",
+        "MutationObserver"
       ]
     },
     {
